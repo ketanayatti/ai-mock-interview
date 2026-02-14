@@ -8,8 +8,8 @@ pipeline {
                 branch 'develop'
             }
             steps {
-                sh 'docker-compose down'
-                sh 'docker-compose up -d --build'
+                sh 'docker compose down'
+                sh 'docker compose up -d --build'
             }
         }
 
@@ -18,8 +18,8 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh 'docker-compose down'
-                sh 'docker-compose up -d --build'
+                sh 'docker compose down'
+                sh 'docker compose up -d --build'
             }
         }
     }
