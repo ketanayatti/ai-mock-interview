@@ -4,7 +4,9 @@ pipeline {
     stages {
 
         stage('Deploy Staging') {
-            when { branch 'develop' }
+            when {
+                branch 'develop'
+            }
             steps {
                 sh 'docker-compose down'
                 sh 'docker-compose up -d --build'
@@ -12,7 +14,9 @@ pipeline {
         }
 
         stage('Deploy Production') {
-            when { branch 'main' }
+            when {
+                branch 'main'
+            }
             steps {
                 sh 'docker-compose down'
                 sh 'docker-compose up -d --build'
