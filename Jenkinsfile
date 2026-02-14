@@ -18,8 +18,8 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh 'docker compose down'
-                sh 'docker compose up -d --build'
+                sh 'docker compose -f docker-compose.prod.yml down'
+                sh 'docker compose -f docker-compose.prod.yml up -d --build'
             }
         }
     }
