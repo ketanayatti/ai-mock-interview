@@ -9,6 +9,8 @@ pipeline {
         GMAIL_PASS     = credentials('GMAIL_PASS')
         GEMINI_API_KEY = credentials('GEMINI_API_KEY')
         API_KEY        = credentials('API_KEY')
+        OPENAI_API_KEY = credentials('OPENAI_API_KEY')
+        COHERE_API_KEY = credentials('COHERE_API_KEY') 
     }
 
     stages {
@@ -26,6 +28,8 @@ pipeline {
                 echo "GMAIL_PASS=$GMAIL_PASS" >> .env
                 echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
                 echo "API_KEY=$API_KEY" >> .env
+                echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+                echo "COHERE_API_KEY=$COHERE_API_KEY" >> .env
                 '''
             }
         }

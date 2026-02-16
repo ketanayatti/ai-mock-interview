@@ -25,6 +25,12 @@ const spaceSchema = new mongoose.Schema({
     type: String, 
     required: true, // Brief job description provided by the student or company
   },
+  experienceLevel: {
+    type: String,
+    enum: ['fresher', 'intermediate', 'experienced'],
+    default: 'fresher',
+    required: true,
+  },
   interviewRounds: [interviewRoundSchema], // List of interview rounds associated with this space
   resumePath: { 
     type: String, 

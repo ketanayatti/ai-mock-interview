@@ -1,1238 +1,495 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Advanced Interview Platform</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
-      body {
-        font-family: "Inter", sans-serif;
-        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview | CommunicateAI Pro</title>
 
-      .pulse-animation {
-        animation: pulse 1.5s infinite;
-      }
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-      @keyframes pulse {
-        0% {
-          transform: scale(1);
-          opacity: 1;
-        }
-        50% {
-          transform: scale(1.1);
-          opacity: 0.7;
-        }
-        100% {
-          transform: scale(1);
-          opacity: 1;
-        }
-      }
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="/css/style.css">
 
-      .wave-animation {
-        position: absolute;
-        border-radius: 50%;
-        animation: wave 2s infinite;
-        opacity: 0;
-      }
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-      .wave-1 {
-        animation-delay: 0s;
-      }
+  <style>
+    /* Specific styles for Interview Screen */
+    .interview-layout {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #000;
+      /* Video focus often needs dark, but let's try keep it light/neutral or dark for contrast */
+      background: var(--bg-color);
+      /* Stick to light theme as requested */
+    }
 
-      .wave-2 {
-        animation-delay: 0.6s;
-      }
+    .video-container {
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-      .wave-3 {
-        animation-delay: 1.2s;
-      }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
 
-      @keyframes wave {
-        0% {
-          transform: scale(1);
-          opacity: 0.4;
-        }
-        100% {
-          transform: scale(1.8);
-          opacity: 0;
-        }
-      }
+    .controls-bar {
+      padding: 16px;
+      background: white;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
 
-      .slide-in {
-        animation: slideIn 0.5s ease-out forwards;
-      }
+    .transcript-panel {
+      width: 350px;
+      background: white;
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
 
-      @keyframes slideIn {
-        from {
-          transform: translateY(20px);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
-      }
+    .transcript-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
 
-      .fade-in {
-        animation: fadeIn 0.8s ease-out forwards;
-      }
+    .question-overlay {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      right: 24px;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 16px 24px;
+      border-radius: 12px;
+      color: white;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 500;
+      z-index: 10;
+    }
 
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
-        }
-      }
+    .mic-button {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: all 0.2s;
+    }
 
-      /* Progress bar animation */
-      .progress-value {
-        transition: width 0.4s ease;
-      }
+    .mic-button.active {
+      background: var(--accent-color);
+      color: white;
+      box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.2);
+    }
 
-      /* Improved scrollbar for the transcript */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-      }
+    .mic-button.inactive {
+      background: #F5F5F7;
+      color: var(--text-primary);
+    }
 
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-      }
+    .transcript-bubble {
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
 
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 10px;
-      }
+    .bubble-ai {
+      background: #F5F5F7;
+      color: var(--text-primary);
+      border-top-left-radius: 2px;
+    }
 
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
+    .bubble-user {
+      background: var(--accent-color);
+      color: white;
+      border-top-right-radius: 2px;
+      margin-left: 24px;
+    }
 
-      /* Camera filters */
-      .camera-container {
-        position: relative;
-      }
+    .camera-placeholder {
+      position: absolute;
+      inset: 0;
+      background: #1c1c1e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6e6e73;
+    }
+  </style>
+</head>
 
-      .camera-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.2);
-        border-radius: 1rem;
-      }
+<body>
 
-      /* Loading spinner */
-      .spinner {
-        width: 40px;
-        height: 40px;
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top: 4px solid #3b82f6;
-        animation: spin 1s linear infinite;
-      }
+  <div id="loadingOverlay" class="fixed inset-0 z-50 bg-white flex items-center justify-center flex-col">
+    <div class="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4"
+      style="border-color: var(--accent-color); border-top-color: transparent;"></div>
+    <h2 class="text-xl font-bold mb-2">Setting up Studio</h2>
+    <p class="text-secondary">Preparing your <%= roundName %> interview...</p>
+  </div>
 
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      /* Typing indicator animation */
-      @keyframes typing {
-        0% {
-          opacity: 0.3;
-        }
-        50% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0.3;
-        }
-      }
-
-      .typing-dot:nth-child(1) {
-        animation: typing 1.4s infinite 0s;
-      }
-      .typing-dot:nth-child(2) {
-        animation: typing 1.4s infinite 0.2s;
-      }
-      .typing-dot:nth-child(3) {
-        animation: typing 1.4s infinite 0.4s;
-      }
-    </style>
-  </head>
-  <body class="min-h-screen flex flex-col">
-    <!-- Loading overlay -->
-    <div
-      id="loadingOverlay"
-      class="fixed inset-0 bg-black bg-opacity-70 z-50 flex flex-col items-center justify-center transition-opacity duration-300"
-      style="display: flex"
-    >
-      <div
-        class="text-center px-6 py-8 rounded-xl bg-white shadow-2xl transform transition-transform duration-500 scale-100"
-      >
-        <div class="flex flex-col items-center">
-          <div class="mb-6">
-            <svg
-              class="w-16 h-16 text-blue-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-              ></path>
-            </svg>
-          </div>
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">
-            Preparing Your Interview
-          </h2>
-          <p class="text-gray-600 mb-6">
-            Setting up your personalized interview experience...
-          </p>
-
-          <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
-            <div
-              id="loadingProgress"
-              class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style="width: 0%"
-            ></div>
-          </div>
-
-          <p id="loadingMessage" class="text-sm text-gray-500">
-            Initializing interview environment...
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main content -->
-    <div
-      id="interviewContainer"
-      class="container mx-auto px-4 py-8 max-w-7xl hidden"
-    >
-      <div class="mb-6">
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold text-gray-800">
-            Technical Interview Session
+  <div class="interview-layout">
+    <!-- Header -->
+    <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-20">
+      <div class="flex items-center gap-4">
+        <a href="/dashboard"
+          class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-secondary transition">
+          <i class="fas fa-chevron-left text-sm"></i>
+        </a>
+        <div>
+          <h1 class="text-base font-bold">
+            <%= space.companyName %> <span class="text-secondary font-normal">/ <%= space.jobPosition %></span>
           </h1>
-          <div class="flex items-center space-x-2">
-            <span id="progressText" class="text-gray-600 text-sm font-medium"
-              >Question 1 of 5</span
-            >
-            <div class="w-48 bg-gray-200 rounded-full h-2">
-              <div
-                id="progressBar"
-                class="bg-blue-600 h-2 rounded-full progress-value"
-                style="width: 20%"
-              ></div>
-            </div>
+          <div class="flex items-center gap-2 text-xs text-secondary">
+            <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+            Live Interview • <%= roundName %> Round
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <!-- Left column (3/5) -->
-        <div class="lg:col-span-3 space-y-6">
-          <!-- Question card -->
-          <div class="bg-white rounded-xl shadow-lg p-6 slide-in">
-            <div class="flex items-start justify-between">
-              <div class="flex-1">
-                <div class="flex items-center mb-4">
-                  <div
-                    class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3"
-                  >
-                    <i class="fas fa-question text-blue-600"></i>
-                  </div>
-                  <h2 class="text-lg font-semibold text-gray-800">
-                    Current Question
-                  </h2>
-                </div>
-                <div
-                  id="questionContainer"
-                  class="text-gray-700 leading-relaxed py-2 border-l-4 border-blue-500 pl-4"
-                >
-                  Loading question...
-                </div>
-              </div>
-              <!-- Question control button - single button that changes function -->
-              <div class="flex space-x-2">
-                <button
-                  id="questionControlButton"
-                  class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors"
-                  title="Stop Audio"
-                >
-                  <i class="fas fa-volume-mute"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Video section -->
-          <div
-            class="bg-white rounded-xl shadow-lg p-6 slide-in"
-            style="animation-delay: 0.1s"
-          >
-            <div
-              class="camera-container rounded-lg overflow-hidden relative aspect-video bg-gray-900"
-            >
-              <video
-                id="video"
-                class="w-full h-full object-cover"
-                autoplay
-                playsinline
-              ></video>
-              <div class="camera-overlay"></div>
-
-              <!-- Technical quality indicators -->
-              <div class="absolute top-4 left-4 flex space-x-2">
-                <div
-                  class="bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full flex items-center"
-                >
-                  <i class="fas fa-signal mr-1 text-green-400"></i>
-                  <span>HD</span>
-                </div>
-                <div
-                  class="bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full flex items-center"
-                >
-                  <i class="fas fa-microphone mr-1 text-green-400"></i>
-                  <span>Clear</span>
-                </div>
-              </div>
-
-              <!-- Virtual interviewer indicator -->
-              <div
-                id="interviewerIndicator"
-                class="absolute bottom-4 left-4 bg-blue-600 rounded-full p-3 flex items-center justify-center shadow-lg"
-              >
-                <div class="relative">
-                  <i class="fas fa-user-tie text-white text-lg"></i>
-                  <div
-                    class="wave-animation wave-1 inset-0 absolute bg-blue-500"
-                  ></div>
-                  <div
-                    class="wave-animation wave-2 inset-0 absolute bg-blue-500"
-                  ></div>
-                  <div
-                    class="wave-animation wave-3 inset-0 absolute bg-blue-500"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Recording indicator -->
-              <div
-                id="recordingIndicator"
-                class="absolute top-4 right-4 bg-red-500 bg-opacity-80 text-white text-xs px-3 py-1 rounded-full hidden items-center"
-              >
-                <div
-                  class="w-2 h-2 bg-red-100 rounded-full pulse-animation mr-1"
-                ></div>
-                <span>REC</span>
-              </div>
-
-              <!-- Virtual backgrounds option -->
-              <div class="absolute bottom-4 right-4">
-                <button
-                  class="bg-black bg-opacity-50 text-white text-xs px-3 py-1 rounded-full hover:bg-opacity-70 transition-all"
-                >
-                  <i class="fas fa-image mr-1"></i>
-                  <span>Backgrounds</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Controls section -->
-            <div class="flex items-center justify-center space-x-4 mt-6">
-              <!-- Mic button (shown by default) -->
-              <button
-                id="micButton"
-                class="flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all focus:outline-none"
-              >
-                <i class="fas fa-microphone text-lg"></i>
-              </button>
-
-              <!-- Stop button (hidden by default) -->
-              <button
-                id="stopSpeakingButton"
-                class="flex items-center justify-center w-14 h-14 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transition-all focus:outline-none"
-                style="display: none"
-              >
-                <i class="fas fa-microphone-slash text-lg"></i>
-              </button>
-
-              <!-- Next button (always visible) -->
-              <button
-                id="nextButton"
-                class="flex items-center justify-center w-14 h-14 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition-all focus:outline-none"
-              >
-                <i class="fas fa-arrow-right text-lg"></i>
-              </button>
-            </div>
-
-            <!-- Status indicators -->
-            <div class="flex justify-center mt-3">
-              <div
-                id="listeningText"
-                class="hidden items-center text-sm font-medium text-blue-600"
-              >
-                <span class="mr-2">Listening</span>
-                <div class="flex space-x-1">
-                  <div
-                    class="typing-dot w-1.5 h-1.5 bg-blue-600 rounded-full"
-                  ></div>
-                  <div
-                    class="typing-dot w-1.5 h-1.5 bg-blue-600 rounded-full"
-                  ></div>
-                  <div
-                    class="typing-dot w-1.5 h-1.5 bg-blue-600 rounded-full"
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right column (2/5) -->
-        <div class="lg:col-span-2">
-          <div
-            class="bg-white rounded-xl shadow-lg p-6 h-full slide-in"
-            style="animation-delay: 0.2s"
-          >
-            <div class="flex items-center mb-4">
-              <div
-                class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mr-3"
-              >
-                <i class="fas fa-comment-alt text-green-600"></i>
-              </div>
-              <h2 class="text-lg font-semibold text-gray-800">Your Response</h2>
-            </div>
-
-            <!-- Transcript area -->
-            <div class="relative h-[calc(100%-4rem)]">
-              <textarea
-                id="answer"
-                class="w-full h-full px-4 py-3 border border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 rounded-lg resize-none custom-scrollbar"
-                placeholder="Your answer will appear here as you speak..."
-                disabled
-              ></textarea>
-
-              <!-- Word/character counter -->
-              <div class="absolute bottom-3 right-3 text-xs text-gray-500">
-                <span id="wordCount">0</span> words
-              </div>
-
-              <div class="absolute bottom-3 left-3 text-xs">
-                <button
-                  id="editButton"
-                  class="flex items-center space-x-1 text-amber-600 hover:text-amber-700 transition-colors"
-                >
-                  <i class="fas fa-edit"></i>
-                  <span>Edit</span>
-                </button>
-              </div>
-            </div>
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <p class="text-xs text-secondary font-medium mb-1" id="progressText">Question 1</p>
+          <div class="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div id="progressBar" class="h-full bg-accent transition-all duration-500"
+              style="background-color: var(--accent-color); width: 0%;"></div>
           </div>
         </div>
       </div>
+    </header>
 
-      <!-- Interview tips/feedback section -->
-      <div
-        class="mt-6 bg-white rounded-xl shadow-lg p-6 slide-in"
-        style="animation-delay: 0.3s"
-      >
-        <div class="flex items-center mb-4">
-          <div
-            class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3"
-          >
-            <i class="fas fa-lightbulb text-indigo-600"></i>
+    <!-- Workspace -->
+    <div class="flex flex-1 overflow-hidden p-6 gap-6">
+      <!-- Video Screen -->
+      <div class="video-container relative group">
+        <video id="webcam" autoplay playsinline muted></video>
+
+        <div id="videoPlaceholder" class="camera-placeholder">
+          <div class="text-center">
+            <i class="fas fa-video-slash text-4xl mb-4 opacity-50"></i>
+            <p>Camera Off</p>
           </div>
-          <h3 class="text-base font-semibold text-gray-800">Interview Tips</h3>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-indigo-50 rounded-lg p-3">
-            <p class="text-sm text-gray-700">
-              <span class="font-medium">Speak clearly:</span> Articulate
-              technical terms carefully for better recognition.
-            </p>
+        <!-- AI Visual (Picture-in-Picture style top right) -->
+        <div
+          class="absolute top-4 right-4 w-32 h-40 bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 z-10">
+          <div class="h-full w-full bg-gray-50 flex flex-col items-center justify-center p-2 text-center">
+            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=<%= spaceId %>" class="w-16 h-16 mb-2">
+            <p class="text-xs font-bold truncate w-full">AI Recruiter</p>
+            <span id="aiStatus" class="text-[10px] text-secondary">Ready</span>
           </div>
-          <div class="bg-indigo-50 rounded-lg p-3">
-            <p class="text-sm text-gray-700">
-              <span class="font-medium">Structure:</span> Use STAR method
-              (Situation, Task, Action, Result) for responses.
-            </p>
-          </div>
-          <div class="bg-indigo-50 rounded-lg p-3">
-            <p class="text-sm text-gray-700">
-              <span class="font-medium">Concise:</span> Keep answers focused and
-              avoid going off-topic.
-            </p>
-          </div>
+        </div>
+
+        <!-- Question Overlay -->
+        <div class="question-overlay fade-in">
+          <p id="questionContainer">Connecting...</p>
+        </div>
+      </div>
+
+      <!-- Sidebar Transcript -->
+      <div class="transcript-panel rounded-xl border border-gray-200 overflow-hidden shadow-sm hidden md:flex">
+        <div class="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 class="text-sm font-semibold uppercase text-secondary">Transcript</h3>
+        </div>
+        <div id="transcriptContainer" class="transcript-content">
+          <p class="text-center text-secondary text-sm mt-10">Interview starting...</p>
+        </div>
+        <div class="p-4 border-t border-gray-200 bg-gray-50">
+          <textarea id="answer"
+            class="w-full bg-white border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-none"
+            placeholder="Your answer will appear here..." readonly></textarea>
         </div>
       </div>
     </div>
-<script>
-  // Initialize variables
-const spaceId = "<%= spaceId %>"; // Passed from server
-const roundName = "<%= roundName %>"; // Passed from server
-let currentQuestionIndex = 0;
-let questions = [];
-let answers = {}; // Temporary storage for answers
-// let recognition;
-let mediaStream = null; // Store media stream for cleanup
-let recognition = null;
-let isRecording = false;
-let currentAnswer = ""; // Store current answer while speaking
-let currentUtterance = null; // Track current speech synthesis
-let recognitionPaused = false;
-let audioContext = null; // Added for audio processing
-let audioDestination = null; // Added for audio routing
 
-// Technical terms dictionary to help with speech recognition
-const technicalTerms = {
-  javascript: "JavaScript",
-  python: "Python",
-  java: "Java",
-  react: "React",
-  "node js": "Node.js",
-  nodejs: "Node.js",
-  sequel: "SQL",
-  "my sequel": "MySQL",
-  "post gress": "PostgreSQL",
-  "mongo db": "MongoDB",
-  docker: "Docker",
-  kubernetes: "Kubernetes",
-  kubernetes: "K8s",
-  angler: "Angular",
-  "view js": "Vue.js",
-  lambda: "Lambda",
-  "c sharp": "C#",
-  "see sharp": "C#",
-  rest: "REST",
-  api: "API",
-  apis: "APIs",
-  json: "JSON",
-  html: "HTML",
-  css: "CSS",
-  aws: "AWS",
-  azure: "Azure",
-  linux: "Linux",
-  unix: "Unix",
-  github: "GitHub",
-  git: "Git",
-  devops: "DevOps",
-  "ci cd": "CI/CD",
-  "front end": "frontend",
-  "back end": "backend",
-  "type script": "TypeScript",
-};
-
-// Initialize audio context for proper audio handling
-async function initializeAudioContext() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    audioDestination = audioContext.createMediaStreamDestination();
-  }
-}
-
-// Show loading bar animation
-function animateLoading() {
-  const loadingProgress = document.getElementById("loadingProgress");
-  const loadingMessage = document.getElementById("loadingMessage");
-
-  let progress = 0;
-  const messages = [
-    "Initializing interview environment...",
-    "Preparing interview questions...",
-    "Setting up voice recognition...",
-    "Configuring video connection...",
-    "Almost ready...",
-  ];
-
-  const interval = setInterval(() => {
-    progress += 5;
-    loadingProgress.style.width = `${progress}%`;
-
-    if (progress % 20 === 0) {
-      const messageIndex = Math.floor(progress / 20) - 1;
-      if (messageIndex < messages.length) {
-        loadingMessage.textContent = messages[messageIndex];
-      }
-    }
-
-    if (progress >= 100) {
-      clearInterval(interval);
-      setTimeout(() => {
-        document.getElementById("loadingOverlay").style.opacity = "0";
-        setTimeout(() => {
-          document.getElementById("loadingOverlay").style.display =
-            "none";
-          document
-            .getElementById("interviewContainer")
-            .classList.remove("hidden");
-          document
-            .getElementById("interviewContainer")
-            .classList.add("fade-in");
-        }, 500);
-      }, 500);
-    }
-  }, 50);
-}
-
-// Initialize interview
-async function initializeInterview() {
-  animateLoading();
-
-  try {
-    // Fetch questions via API call - temporarily mocked
-    // In real implementation, fetch from '/generate-questions/${spaceId}/${roundName}'
-    const response = await fetch(`/generate-questions/${spaceId}/${roundName}`);
-    const data = await response.json();
-    questions = data.questions;
-
-    // Update progress indicator
-    document.getElementById(
-      "progressText"
-    ).textContent = `Question 1 of ${questions.length}`;
-    document.getElementById("progressBar").style.width = `${
-      (1 / questions.length) * 100
-    }%`;
-
-    // Display first question once loading is complete
-    setTimeout(() => {
-      showQuestion(currentQuestionIndex);
-    }, 2500);
-  } catch (err) {
-    console.error("Error initializing interview:", err);
-    document.getElementById("loadingMessage").innerText =
-      "Error loading questions. Please refresh and try again.";
-  }
-}
-
-function showQuestion(index) {
-  const questionContainer = document.getElementById('questionContainer');
-  const micButton = document.getElementById('micButton');
-  const questionControlButton = document.getElementById('questionControlButton');
-  
-  questionContainer.textContent = questions[index];
-  questionContainer.classList.add('slide-in');
-  
-  // Update progress indicators
-  document.getElementById('progressText').textContent = `Question ${index + 1} of ${questions.length}`;
-  document.getElementById('progressBar').style.width = `${((index + 1) / questions.length) * 100}%`;
-
-  // Stop any previous speech
-  speechSynthesis.cancel();
-
-  // Use Text-to-Speech with improved voice settings
-  currentUtterance = new SpeechSynthesisUtterance(questions[index]);
-  
-  // Set up the question control button for "stop" mode
-  questionControlButton.title = "Stop Audio";
-  questionControlButton.innerHTML = '<i class="fas fa-volume-mute"></i>';
-  questionControlButton.onclick = stopQuestionSpeaking;
-  
-  // Improve voice settings
-  currentUtterance.rate = 0.9;
-  currentUtterance.pitch = 1.1;
-  
-  // Try to get a better voice if available
-  const voices = speechSynthesis.getVoices();
-  const preferredVoices = [
-    'Google UK English Male',
-    'Microsoft Mark - English (United States)',
-    'Alex',
-    'Daniel'
-  ];
-  
-  for (const preferredVoice of preferredVoices) {
-    const voice = voices.find(v => v.name === preferredVoice);
-    if (voice) {
-      currentUtterance.voice = voice;
-      break;
-    }
-  }
-
-  // Add interviewer speaking animation
-  document.getElementById('interviewerIndicator').classList.add('pulse-animation');
-
-  // Disable buttons while speaking
-  micButton.disabled = true;
-
-  // When speech synthesis ends, enable the mic button and allow recording
-  currentUtterance.onend = () => {
-    micButton.disabled = false;
-    document.getElementById('interviewerIndicator').classList.remove('pulse-animation');
-    
-    // Change question control button to replay mode
-    questionControlButton.title = "Replay Question";
-    questionControlButton.innerHTML = '<i class="fas fa-redo-alt"></i>';
-    questionControlButton.onclick = replayQuestion;
-    
-    // Auto-start listening after question is spoken
-    setTimeout(() => {
-      // Show "Speak now" notification
-      const notification = document.createElement('div');
-      notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center fade-in';
-      notification.innerHTML = '<i class="fas fa-microphone mr-2"></i> Speak now...';
-      document.body.appendChild(notification);
-      
-      // Start listening automatically
-      toggleSpeechRecognition();
-      
-      // Remove notification after 3 seconds
-      setTimeout(() => {
-        notification.classList.add('fade-out');
-        setTimeout(() => notification.remove(), 500);
-      }, 3000);
-    }, 1000);
-  };
-
-  speechSynthesis.speak(currentUtterance);
-}
-
-function stopQuestionSpeaking() {
-  const micButton = document.getElementById('micButton');
-  const questionControlButton = document.getElementById('questionControlButton');
-
-  // Stop speech synthesis
-  speechSynthesis.cancel();
-  document.getElementById('interviewerIndicator').classList.remove('pulse-animation');
-
-  // Enable mic button
-  micButton.disabled = false;
-  
-  // Change to replay button
-  questionControlButton.title = "Replay Question";
-  questionControlButton.innerHTML = '<i class="fas fa-redo-alt"></i>';
-  questionControlButton.onclick = replayQuestion;
-}
-
-// Check for speech recognition support and initialize
-function checkSpeechRecognitionSupport() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  // Check for SpeechRecognition support
-  if (!SpeechRecognition) {
-    alert(
-      "Your browser does not support speech recognition. You can answer manually using the edit button."
-    );
-    document.getElementById("micButton").disabled = true;
-  } else {
-    recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      isRecording = true;
-      currentAnswer = document.getElementById("answer").value || "";
-      document.getElementById("micButton").disabled = true;
-      document.getElementById("stopSpeakingButton").disabled = false;
-      document
-        .getElementById("recordingIndicator")
-        .classList.remove("hidden");
-      document.getElementById("recordingIndicator").classList.add("flex");
-      document.getElementById("listeningText").classList.remove("hidden");
-      document.getElementById("listeningText").classList.add("flex");
-
-      // Add wave animation to mic button
-      const micWaveAnimation = document.getElementById("micWaveAnimation");
-      if (micWaveAnimation) {
-        micWaveAnimation.classList.add("wave-animation", "wave-1");
-      }
-      
-      // Ensure video remains muted during speech recognition
-      const video = document.getElementById("video");
-      if (video) video.muted = true;
-    };
-
-    recognition.onresult = (event) => {
-      let finalTranscript = currentAnswer;
-      let interimTranscript = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        let transcript = result[0].transcript;
-
-        // Apply technical term corrections
-        for (const [incorrect, correct] of Object.entries(
-          technicalTerms
-        )) {
-          const regex = new RegExp(`\\b${incorrect}\\b`, "gi");
-          transcript = transcript.replace(regex, correct);
-        }
-
-        if (result.isFinal) {
-          finalTranscript +=
-            (finalTranscript ? " " : "") + transcript.trim();
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-
-      // Update the answer with final and interim results
-      const answerElement = document.getElementById("answer");
-      answerElement.value =
-        finalTranscript +
-        (interimTranscript ? ` ${interimTranscript}` : "");
-
-      // Update word count
-      updateWordCount(answerElement.value);
-
-      // Update the current answer for continuity
-      currentAnswer = finalTranscript;
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event);
-
-      if (event.error === "no-speech") {
-        // Don't disable the mic button for no-speech errors
-        return;
-      }
-
-      document.getElementById("micButton").disabled = false;
-      document.getElementById("stopSpeakingButton").disabled = true;
-      document
-        .getElementById("recordingIndicator")
-        .classList.add("hidden");
-      document
-        .getElementById("recordingIndicator")
-        .classList.remove("flex");
-      document.getElementById("listeningText").classList.add("hidden");
-      document.getElementById("listeningText").classList.remove("flex");
-      
-      const micWaveAnimation = document.getElementById("micWaveAnimation");
-      if (micWaveAnimation) {
-        micWaveAnimation.classList.remove("wave-animation", "wave-1");
-      }
-    };
-
-    recognition.onend = () => {
-      if (!recognitionPaused) {
-        isRecording = false;
-        document.getElementById("micButton").disabled = false;
-        document.getElementById("stopSpeakingButton").disabled = true;
-        document
-          .getElementById("recordingIndicator")
-          .classList.add("hidden");
-        document
-          .getElementById("recordingIndicator")
-          .classList.remove("flex");
-        document.getElementById("listeningText").classList.add("hidden");
-        document.getElementById("listeningText").classList.remove("flex");
-        
-        const micWaveAnimation = document.getElementById("micWaveAnimation");
-        if (micWaveAnimation) {
-          micWaveAnimation.classList.remove("wave-animation", "wave-1");
-        }
-      } else {
-        // If paused (not a real end), restart recognition
-        recognitionPaused = false;
-        recognition.start();
-      }
-    };
-  }
-}
-
-// Question control button logic
-
-// Update word count display
-function updateWordCount(text) {
-  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-  document.getElementById("wordCount").textContent = wordCount;
-}
-
-// Replay current question
-function replayQuestion() {
-  showQuestion(currentQuestionIndex);
-}
-
-// Start speech recognition
-function toggleSpeechRecognition() {
-  const micButton = document.getElementById('micButton');
-  const stopSpeakingButton = document.getElementById('stopSpeakingButton');
-  const nextButton = document.getElementById('nextButton');
-
-  if (!recognition) {
-    alert('Speech recognition is not supported in your browser. Please use the edit button to type your answer.');
-    return;
-  }
-
-  // Don't start if already recording
-  if (isRecording) {
-    return;
-  }
-
-  // Start recording
-  currentAnswer = document.getElementById('answer').value || '';
-  try {
-    recognition.start();
-  } catch (e) {
-    // Already started — ignore the error
-    console.warn('Speech recognition start error (ignored):', e.message);
-    return;
-  }
-  
-  // Hide mic button, show only stop button
-  micButton.style.display = 'none';
-  stopSpeakingButton.style.display = 'flex';
-  stopSpeakingButton.disabled = false;
-  document.getElementById('editButton').style.display = 'none'; 
-  nextButton.disabled = true;
-  
-  // Show recording indicators
-  document.getElementById('recordingIndicator').classList.remove('hidden');
-  document.getElementById('recordingIndicator').classList.add('flex');
-  document.getElementById('listeningText').classList.remove('hidden');
-  document.getElementById('listeningText').classList.add('flex');
-  
-  const micWaveAnimation = document.getElementById("micWaveAnimation");
-  if (micWaveAnimation) {
-    micWaveAnimation.classList.add("wave-animation", "wave-1");
-  }
-}
-
-function stopSpeaking() {
-  const micButton = document.getElementById('micButton');
-  const stopSpeakingButton = document.getElementById('stopSpeakingButton');
-  const nextButton = document.getElementById('nextButton');
-  const editButton = document.getElementById('editButton');
-
-  if (recognition) {
-    recognition.stop();
-  }
-
-  // Always show mic button and hide stop button when stopping
-  micButton.style.display = 'flex';
-  stopSpeakingButton.style.display = 'none';
-  
-  micButton.disabled = false;
-  document.getElementById('answer').disabled = false;
-  editButton.style.display = 'inline-block';
-  nextButton.disabled = false;
-  
-  // Hide recording indicators
-  document.getElementById('recordingIndicator').classList.add('hidden');
-  document.getElementById('recordingIndicator').classList.remove('flex');
-  document.getElementById('listeningText').classList.add('hidden');
-  document.getElementById('listeningText').classList.remove('flex');
-  
-  const micWaveAnimation = document.getElementById("micWaveAnimation");
-  if (micWaveAnimation) {
-    micWaveAnimation.classList.remove("wave-animation", "wave-1");
-  }
-}
-
-// Save the current answer and move to the next question
-function saveAnswerAndNext() {
-  const question = questions[currentQuestionIndex];
-  const answer = document.getElementById("answer").value;
-
-  // Save the answer locally
-  answers[question] = answer;
-
-  // Proceed to the next question
-  currentQuestionIndex++;
-
-  // Check if there are more questions
-  if (currentQuestionIndex < questions.length) {
-    document.getElementById("answer").value = "";
-    document.getElementById("wordCount").textContent = "0";
-
-    // Show next question with a slide animation
-    showQuestion(currentQuestionIndex);
-  } else {
-    finishInterview(); // All questions answered, finish interview
-  }
-}
-
-// Enable editing mode for the answer
-function enableEditing() {
-  const editButton = document.getElementById("editButton");
-  const answerTextarea = document.getElementById("answer");
-  answerTextarea.disabled = false;
-  answerTextarea.focus();
-  editButton.style.display = "none";
-  document.getElementById("nextButton").disabled = false;
-}
-
-// Finish the interview and submit answers
-async function finishInterview() {
-  // Clean up resources
-  cleanupResources();
-  
-  // Show completion overlay
-  const loadingOverlay = document.getElementById("loadingOverlay");
-  loadingOverlay.style.display = "flex";
-  loadingOverlay.style.opacity = "1";
-
-  document.getElementById("loadingProgress").style.width = "0%";
-  document.getElementById("loadingMessage").textContent = "Processing your interview responses...";
-
-  // Simulate progress animation
-  let progress = 0;
-  const interval = setInterval(() => {
-    progress += 5;
-    document.getElementById("loadingProgress").style.width = `${progress}%`;
-
-    if (progress === 30) {
-      document.getElementById("loadingMessage").textContent = "Analyzing your responses...";
-    } else if (progress === 60) {
-      document.getElementById("loadingMessage").textContent = "Finalizing your submission...";
-    } else if (progress === 90) {
-      document.getElementById("loadingMessage").textContent = "Almost done...";
-    }
-
-    if (progress >= 100) {
-      clearInterval(interval);
-      document.getElementById("loadingMessage").textContent = "Complete! Redirecting...";
-      
-      submitAnswers();
-    }
-  }, 50);
-}
-
-// Separate function to handle the server submission
-async function submitAnswers() {
-  try {
-    const response = await fetch(`/finish-round/${spaceId}/${roundName}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers }),
-    });
-    
-    if (response.ok) {
-      // Redirect to dashboard after successful submission
-      window.location.href = '/dashboard';
-    } else {
-      // Show error message and options
-      showSubmissionError('Server error occurred. Please try again.');
-    }
-  } catch (err) {
-    console.error('Error finishing interview:', err);
-    showSubmissionError('Network error. Please check your connection and try again.');
-  }
-}
-
-// Function to handle submission errors
-function showSubmissionError(message) {
-  // Hide loading animation
-  document.getElementById("loadingProgress").style.width = "0%";
-  document.getElementById("loadingMessage").textContent = message;
-  
-  // Add retry and dashboard buttons
-  const loadingContainer = document.querySelector('#loadingOverlay > div');
-  
-  // Remove any existing buttons first
-  loadingContainer.querySelectorAll('button').forEach(btn => btn.remove());
-  
-  // Add new buttons
-  const buttonsDiv = document.createElement('div');
-  buttonsDiv.className = 'flex space-x-4 mt-6';
-  buttonsDiv.innerHTML = `
-    <button class="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition-colors"
-            onclick="submitAnswers()">
-      Try Again
-    </button>
-    <button class="px-6 py-2 bg-gray-600 text-white rounded-lg shadow-lg hover:bg-gray-700 transition-colors"
-            onclick="window.location.href='/dashboard'">
-      Return to Dashboard
-    </button>
-  `;
-  
-  loadingContainer.appendChild(buttonsDiv);
-}
-
-// Clean up resources including audio context
-function cleanupResources() {
-  // Stop all tracks from the media stream
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(track => track.stop());
-  }
-  
-  // Stop speech recognition if active
-  if (recognition) {
-    recognition.abort();
-  }
-  
-  // Stop speech synthesis if active
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-  }
-  
-  // Close audio context if it exists
-  if (audioContext && audioContext.state !== 'closed') {
-    audioContext.close().catch(err => console.error('Error closing audio context:', err));
-  }
-}
-
-// Initialize camera stream with audio constraints to prevent reflection
-async function initializeCamera() {
-  try {
-    // Initialize audio context first
-    await initializeAudioContext();
-    
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: "user",
-      },
-      audio: {
-        echoCancellation: true,    // Enable echo cancellation
-        noiseSuppression: true,    // Enable noise suppression
-        autoGainControl: true      // Enable automatic gain control
-      }
-    });
-
-    // Connect the audio to the destination but don't output it to speakers
-    if (stream.getAudioTracks().length > 0) {
-      const audioSource = audioContext.createMediaStreamSource(stream);
-      // Don't connect to audioContext.destination (would cause echo)
-      // Instead, connect to a silent destination
-      audioSource.connect(audioDestination);
-    }
-
-    const video = document.getElementById("video");
-    video.srcObject = stream;
-    video.muted = true;  // Important: mute the video element to prevent feedback
-    mediaStream = stream;
-
-    // Add camera started indicator
-    setTimeout(() => {
-      document.querySelector(".camera-container").insertAdjacentHTML(
-        "beforeend",
-        `
-        <div class="absolute top-4 left-4 bg-green-500 bg-opacity-80 text-white text-xs px-3 py-1 rounded-full flex items-center fade-in">
-          <i class="fas fa-video mr-1"></i>
-          <span>Camera Active</span>
-        </div>
-      `
-      );
-    }, 1000);
-  } catch (err) {
-    console.error("Error accessing camera:", err);
-
-    // Show camera error message
-    document.querySelector(".camera-container").innerHTML = `
-    <div class="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-white">
-      <i class="fas fa-video-slash text-4xl mb-4"></i>
-      <h3 class="text-xl font-medium mb-2">Camera Access Denied</h3>
-      <p class="text-sm text-gray-300 text-center max-w-md">
-        Please enable camera access in your browser settings to continue with the interview.
-      </p>
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+      <button id="cameraToggle"
+        class="btn btn-secondary rounded-full w-12 h-12 flex items-center justify-center text-lg" title="Toggle Camera">
+        <i class="fas fa-video"></i>
+      </button>
+
+      <button id="micButton" class="mic-button inactive shadow-sm" title="Start Recording">
+        <i class="fas fa-microphone"></i>
+      </button>
+
+      <button id="nextButton" class="btn btn-primary rounded-full px-6 flex items-center gap-2" disabled>
+        <span>Next</span>
+        <i class="fas fa-arrow-right"></i>
+      </button>
     </div>
-  `;
-  }
-}
+  </div>
 
-// Add pause/resume functionality to handle longer speeches without timeouts
-function setupSpeechRecognitionRestarter() {
-  // Chrome's speech recognition has a time limit (~60s), so we need to restart it
-  setInterval(() => {
-    if (isRecording && recognition) {
-      recognitionPaused = true;
+  <script>
+    // Variables
+    const spaceId = "<%= spaceId %>";
+    const roundName = "<%= roundName %>";
+    let currentQuestionIndex = 0;
+    let totalQuestions = 0;
+    let conversationHistory = [];
+    let currentQuestionText = "";
+    let answers = {};
+    let mediaStream = null;
+    let recognition = null;
+    let isRecording = false;
+    let finalTranscriptGlobal = "";
+
+    // Init
+    document.addEventListener("DOMContentLoaded", () => {
+      initializeCamera();
+      initializeInterview();
+
+      document.getElementById("micButton").onclick = toggleSpeechRecognition;
+      document.getElementById("nextButton").onclick = saveAnswerAndNext;
+      document.getElementById("cameraToggle").onclick = toggleCamera;
+    });
+
+    async function initializeInterview() {
       try {
-        recognition.stop(); // This will trigger onend, which will restart because recognitionPaused is true
+        const response = await fetch(`/generate-questions/${spaceId}/${roundName}`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        currentQuestionText = data.question;
+        currentQuestionIndex = data.questionNumber || 1;
+        totalQuestions = data.totalQuestions || 10;
+
+        document.getElementById("loadingOverlay").classList.add("hidden");
+        updateProgress(currentQuestionIndex, totalQuestions);
+        showQuestion(currentQuestionText);
+
+      } catch (err) {
+        console.error(err);
+        alert("Failed to start interview. Please refresh.");
+      }
+    }
+
+    async function initializeCamera() {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const video = document.getElementById("webcam");
+        video.srcObject = mediaStream;
+        document.getElementById("videoPlaceholder").classList.add("hidden");
+      } catch (err) {
+        console.error("Camera access denied", err);
+        document.getElementById("videoPlaceholder").classList.remove("hidden");
+      }
+    }
+
+    // Interaction
+    function showQuestion(text) {
+      document.getElementById('questionContainer').innerText = text;
+      document.getElementById('aiStatus').innerText = 'Speaking...';
+      document.getElementById('aiStatus').className = 'text-[10px] text-accent font-bold';
+
+      finalTranscriptGlobal = "";
+      document.getElementById('answer').value = '';
+      document.getElementById('nextButton').disabled = true;
+
+      if (isRecording) stopUnknown();
+
+      // TTS
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+        const ut = new SpeechSynthesisUtterance(text);
+        // Attempt to select a better voice
+        const voices = speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Samantha'));
+        if (preferredVoice) ut.voice = preferredVoice;
+
+        ut.onend = () => {
+          document.getElementById('aiStatus').innerText = 'Listening...';
+          document.getElementById('aiStatus').className = 'text-[10px] text-success font-bold';
+          setTimeout(startUnknown, 500);
+        };
+        speechSynthesis.speak(ut);
+      } else {
+        // Fallback if no TTS
+        startUnknown();
+      }
+    }
+
+    function toggleSpeechRecognition() {
+      if (isRecording) stopUnknown();
+      else startUnknown();
+    }
+
+    function startUnknown() {
+      if (!recognition) setupSpeechRecognition();
+      try {
+        recognition.start();
+        isRecording = true;
+        updateMicUI(true);
+      } catch (e) { console.warn("Mic already on"); }
+    }
+
+    function stopUnknown() {
+      if (recognition) recognition.stop();
+      isRecording = false;
+      updateMicUI(false);
+    }
+
+    function updateMicUI(active) {
+      const btn = document.getElementById("micButton");
+      const sub = document.getElementById("answer");
+      if (active) {
+        btn.classList.add('active');
+        btn.classList.remove('inactive');
+        btn.innerHTML = '<i class="fas fa-stop"></i>';
+        sub.placeholder = "Listening...";
+      } else {
+        btn.classList.remove('active');
+        btn.classList.add('inactive');
+        btn.innerHTML = '<i class="fas fa-microphone"></i>';
+        sub.placeholder = "Click mic to speak...";
+      }
+    }
+
+    function setupSpeechRecognition() {
+      if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        recognition.onresult = (event) => {
+          let interimTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscriptGlobal += event.results[i][0].transcript + ' ';
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+          const displayText = finalTranscriptGlobal + interimTranscript;
+          document.getElementById('answer').value = displayText;
+          if (displayText.length > 3) document.getElementById("nextButton").disabled = false;
+        };
+
+        recognition.onend = () => {
+          if (isRecording) try { recognition.start(); } catch (e) { }
+          else updateMicUI(false);
+        }
+      }
+    }
+
+    async function saveAnswerAndNext() {
+      const answerText = document.getElementById("answer").value.trim();
+      if (!answerText) return;
+
+      stopUnknown();
+      isRecording = false;
+
+      const btn = document.getElementById("nextButton");
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      btn.disabled = true;
+
+      // Add to transcript
+      addToTranscript(currentQuestionText, answerText);
+      answers[currentQuestionText] = answerText;
+      conversationHistory.push({ question: currentQuestionText, answer: answerText });
+
+      try {
+        const nextQNum = currentQuestionIndex + 1;
+        const response = await fetch(`/next-question/${spaceId}/${roundName}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationHistory, currentQuestionNumber: nextQNum })
+        });
+        const data = await response.json();
+
+        if (data.done) {
+          finishInterview();
+        } else {
+          // Transition
+          currentQuestionText = data.question;
+          currentQuestionIndex = data.questionNumber;
+          updateProgress(currentQuestionIndex, totalQuestions);
+          showQuestion(currentQuestionText);
+          btn.innerHTML = '<span>Next</span><i class="fas fa-arrow-right"></i>';
+        }
       } catch (e) {
-        console.warn('Speech recognition restart error (ignored):', e.message);
+        console.error(e);
+        btn.innerHTML = 'Retry';
+        btn.disabled = false;
       }
     }
-  }, 55000); // Restart every 55 seconds if still recording (before Chrome's ~60s timeout)
-}
 
-// Improve accuracy for technical terms using context
-function setupAdditionalSpeechProcessor() {
-  // This function applies advanced processing to the transcript for technical terms
-  // In a real implementation, this could use a more sophisticated algorithm or ML model
+    async function finishInterview() {
+      document.getElementById("questionContainer").innerText = "Interview Completed. Processing...";
+      await fetch(`/finish-round/${spaceId}/${roundName}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers })
+      });
+      window.location.href = `/space/${spaceId}`;
+    }
 
-  // For example, we might detect programming contexts and apply specialized dictionaries
-  document
-    .getElementById("answer")
-    .addEventListener("input", function () {
-      if (this.disabled) return; // Only process when user is editing
+    function updateProgress(curr, tot) {
+      document.getElementById("progressText").innerText = `Question ${curr} of ${tot}`;
+      const pct = (curr / tot) * 100;
+      document.getElementById("progressBar").style.width = pct + '%';
+    }
 
-      let text = this.value;
-      // Apply contextual processing for common technical term mistakes
-      // Example: When "function" is detected, look for common function syntax errors
-      if (text.includes("function")) {
-        text = text.replace(/funk shun/gi, "function");
-        text = text.replace(/funk shin/gi, "function");
+    function addToTranscript(q, a) {
+      const container = document.getElementById("transcriptContainer");
+      if (container.innerText.includes("Interview starting")) container.innerHTML = "";
+
+      const html = `
+         <div class="transcript-bubble bubble-ai">
+            <p class="text-xs font-bold mb-1">AI</p>
+            ${q}
+         </div>
+         <div class="transcript-bubble bubble-user">
+            <p class="text-xs font-bold mb-1 opacity-80">You</p>
+            ${a}
+         </div>
+       `;
+      container.insertAdjacentHTML('beforeend', html);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function toggleCamera() {
+      const vid = document.getElementById("webcam");
+      const btn = document.getElementById("cameraToggle");
+      if (mediaStream) {
+        const track = mediaStream.getVideoTracks()[0];
+        track.enabled = !track.enabled;
+        if (track.enabled) {
+          document.getElementById("videoPlaceholder").classList.add("hidden");
+          btn.innerHTML = '<i class="fas fa-video"></i>';
+          btn.classList.remove('text-red-500');
+        } else {
+          document.getElementById("videoPlaceholder").classList.remove("hidden");
+          btn.innerHTML = '<i class="fas fa-video-slash"></i>';
+          btn.classList.add('text-red-500');
+        }
       }
-
-      // Update word count when editing
-      updateWordCount(text);
-    });
-}
-
-// Event listeners
-document.addEventListener("DOMContentLoaded", () => {
-  checkSpeechRecognitionSupport();
-  initializeInterview();
-  initializeCamera();
-  setupSpeechRecognitionRestarter();
-  setupAdditionalSpeechProcessor();
-  // setupQuestionControlButton();
-
-  // Attach button event listeners
-  // document
-  //   .getElementById("stopQuestionButton")
-  //   .addEventListener("click", stopQuestionSpeaking);
-  // document
-  //   .getElementById("replayQuestionButton")
-  //   .addEventListener("click", replayQuestion);
-  document
-    .getElementById("micButton")
-    .addEventListener("click", toggleSpeechRecognition);
-  document
-    .getElementById("stopSpeakingButton")
-    .addEventListener("click", stopSpeaking);
-  document
-    .getElementById("nextButton")
-    .addEventListener("click", saveAnswerAndNext);
-  document
-    .getElementById("editButton")
-    .addEventListener("click", enableEditing);
-
-  // Keyboard shortcuts
-  document.addEventListener("keydown", (e) => {
-    // Space key to toggle microphone (when not editing)
-    if (
-      e.code === "Space" &&
-      document.activeElement !== document.getElementById("answer") &&
-      !document.getElementById("micButton").disabled
-    ) {
-      e.preventDefault();
-      toggleSpeechRecognition();
     }
+  </script>
+</body>
 
-    // Escape key to stop speaking
-    if (e.code === "Escape" && isRecording) {
-      stopSpeaking();
-    }
-  });
-});
-</script>
-  </body>
 </html>

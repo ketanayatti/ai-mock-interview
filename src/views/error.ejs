@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | CommunicateAI Pro</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+
+  <main class="min-h-screen flex items-center justify-center" style="padding: 24px;">
+    <div class="text-center fade-in" style="max-width: 480px;">
+
+      <div class="card-static p-10">
+        <!-- Error Icon -->
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--danger-subtle); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: var(--danger-color); font-size: 28px;">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+
+        <h2 class="mb-3" style="font-size: 24px;"><%= title %></h2>
+        <p class="mb-8" style="color: var(--text-secondary); line-height: 1.6;"><%= message %></p>
+
+        <a href="/" class="btn btn-primary">
+          <i class="fas fa-arrow-left mr-1"></i> Back to Home
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

@@ -3,165 +3,98 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CommunicateAI Pro | Profile</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Profile | CommunicateAI Pro</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #080B15;
-      color: #fff;
-    }
-
-    .premium-gradient {
-      background: linear-gradient(135deg, #8A2BE2 0%, #4169E1 100%);
-    }
-
-    .premium-text-gradient {
-      background: linear-gradient(135deg, #8A2BE2 0%, #4169E1 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .glass-card {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .cta-button {
-      position: relative;
-      z-index: 1;
-      overflow: hidden;
-    }
-
-    .cta-button::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(45deg, #8A2BE2, #4169E1, #8A2BE2);
-      z-index: -1;
-      background-size: 200% 200%;
-      animation: gradient-shift 5s ease infinite;
-    }
-
-    @keyframes gradient-shift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    .hovering-card {
-      transition: all 0.3s ease;
-    }
-
-    .hovering-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    }
-  </style>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="min-h-screen">
+
+<body>
 
   <!-- Navigation -->
-  <nav class="glass-card border-b border-white/10 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-16">
-        <a href="/dashboard" class="flex items-center space-x-2">
-          <div class="w-8 h-8 premium-gradient rounded-lg flex items-center justify-center">
-            <i class="fas fa-brain text-white text-sm"></i>
-          </div>
-          <span class="text-lg font-bold">CommunicateAI <span class="premium-text-gradient">Pro</span></span>
-        </a>
-        <div class="flex items-center space-x-4">
-          <a href="/dashboard" class="text-gray-400 hover:text-white transition-colors text-sm">
-            <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
-          </a>
-          <a href="/end-session" class="text-red-400 hover:text-red-300 transition-colors text-sm">
-            <i class="fas fa-sign-out-alt mr-1"></i> End Session
-          </a>
-        </div>
+  <nav class="navbar" id="navbar">
+    <div class="container nav-container">
+      <a href="/dashboard" class="nav-logo">
+        <div class="nav-logo-icon"><i class="fas fa-robot"></i></div>
+        CommunicateAI
+      </a>
+      <div class="flex items-center gap-4">
+        <a href="/dashboard" class="nav-link"><i class="fas fa-arrow-left mr-1"></i> Dashboard</a>
+        <a href="/end-session" class="nav-link" style="color: var(--danger-color);"><i class="fas fa-sign-out-alt mr-1"></i> End Session</a>
       </div>
     </div>
   </nav>
 
   <!-- Main Content -->
-  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  <main class="min-h-screen flex items-center justify-center" style="padding-top: 96px; padding-bottom: 48px;">
+    <div style="max-width: 520px; width: 100%; padding: 0 24px;">
 
-    <!-- Profile Header -->
-    <div class="text-center mb-10">
-      <div class="w-24 h-24 premium-gradient rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/20">
-        <i class="fas fa-user text-white text-4xl"></i>
-      </div>
-      <h1 class="text-3xl font-bold mb-2">Your Profile</h1>
-      <p class="text-gray-400">Manage your session details</p>
-    </div>
-
-    <% if (typeof success !== 'undefined' || (typeof query !== 'undefined' && query && query.success)) { %>
-    <div class="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-center">
-      <i class="fas fa-check-circle mr-2"></i> Profile updated successfully!
-    </div>
-    <% } %>
-
-    <!-- Profile Card -->
-    <div class="glass-card rounded-2xl p-8 hovering-card">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-semibold">
-          <i class="fas fa-id-card mr-2 text-purple-400"></i> Session Details
-        </h2>
-      </div>
-
-      <!-- Session ID (Read-only) -->
-      <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-400 mb-2">Session ID</label>
-        <div class="flex items-center space-x-3">
-          <div class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-gray-300 font-mono text-sm">
-            <%= uniqueId %>
-          </div>
-          <button onclick="copyToClipboard('<%= uniqueId %>')" class="px-4 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors" title="Copy ID">
-            <i class="fas fa-copy text-purple-400"></i>
-          </button>
+      <!-- Profile Header -->
+      <div class="text-center mb-10 fade-in">
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--bg-color); border: 2px solid var(--border-color); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px; color: var(--text-tertiary);">
+          <i class="fas fa-user"></i>
         </div>
-        <p class="text-xs text-gray-500 mt-1">Save this ID to continue your session later.</p>
+        <h2 class="mb-1">Your Profile</h2>
+        <p class="text-sm" style="color: var(--text-secondary);">Manage your session details</p>
       </div>
 
-      <!-- Update Name Form -->
-      <form action="/update-profile" method="POST">
+      <!-- Success Alert -->
+      <% if (success) { %>
+        <div class="alert alert-success mb-6">
+          <i class="fas fa-check-circle"></i>
+          <span>Profile updated successfully!</span>
+        </div>
+      <% } %>
+
+      <!-- Profile Card -->
+      <div class="card-static p-8 mb-6 fade-in" style="animation-delay: 0.1s;">
+        <div class="flex items-center gap-2 mb-6">
+          <i class="fas fa-id-card" style="color: var(--accent-color);"></i>
+          <h4>Session Details</h4>
+        </div>
+
+        <!-- Session ID (Read-only) -->
         <div class="mb-6">
-          <label for="name" class="block text-sm font-medium text-gray-400 mb-2">Display Name</label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value="<%= name %>"
-            required
-            class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-            placeholder="Enter your name"
-          >
+          <label>Session ID</label>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 p-3 font-mono text-sm" style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary);">
+              <%= uniqueId %>
+            </div>
+            <button onclick="copyToClipboard('<%= uniqueId %>')" class="btn btn-secondary" style="padding: 10px 14px;" title="Copy ID">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+          <p class="text-xs mt-1" style="color: var(--text-tertiary);">Save this ID to continue your session later.</p>
         </div>
 
-        <button type="submit" class="cta-button w-full py-3 rounded-xl text-white font-semibold tracking-wide transition-all hover:shadow-lg hover:shadow-purple-500/25">
-          <i class="fas fa-save mr-2"></i> Update Profile
-        </button>
-      </form>
-    </div>
+        <!-- Update Name Form -->
+        <form action="/update-profile" method="POST">
+          <div class="mb-6">
+            <label for="name">Display Name</label>
+            <input type="text" id="name" name="name" value="<%= name %>" required placeholder="Enter your name">
+          </div>
+          <button type="submit" class="btn btn-primary w-full" style="padding: 12px;">
+            <i class="fas fa-save mr-1"></i> Update Profile
+          </button>
+        </form>
+      </div>
 
-    <!-- Quick Actions -->
-    <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <a href="/dashboard" class="glass-card rounded-xl p-5 hovering-card text-center group">
-        <i class="fas fa-th-large text-2xl text-purple-400 mb-2 group-hover:scale-110 transition-transform inline-block"></i>
-        <p class="text-sm font-medium text-gray-300">Go to Dashboard</p>
-      </a>
-      <a href="/end-session" class="glass-card rounded-xl p-5 hovering-card text-center group border-red-500/20">
-        <i class="fas fa-sign-out-alt text-2xl text-red-400 mb-2 group-hover:scale-110 transition-transform inline-block"></i>
-        <p class="text-sm font-medium text-gray-300">End Session</p>
-      </a>
+      <!-- Quick Actions -->
+      <div class="grid grid-cols-2 gap-4 fade-in" style="animation-delay: 0.2s;">
+        <a href="/dashboard" class="card p-5 text-center">
+          <i class="fas fa-columns text-xl mb-2" style="color: var(--accent-color);"></i>
+          <p class="text-sm font-medium">Dashboard</p>
+        </a>
+        <a href="/end-session" class="card p-5 text-center" style="border-color: rgba(255, 59, 48, 0.15);">
+          <i class="fas fa-sign-out-alt text-xl mb-2" style="color: var(--danger-color);"></i>
+          <p class="text-sm font-medium">End Session</p>
+        </a>
+      </div>
+
     </div>
   </main>
 
@@ -170,12 +103,19 @@
       navigator.clipboard.writeText(text).then(() => {
         const btn = event.currentTarget;
         const icon = btn.querySelector('i');
-        icon.className = 'fas fa-check text-green-400';
+        icon.className = 'fas fa-check';
+        icon.style.color = 'var(--success-color)';
         setTimeout(() => {
-          icon.className = 'fas fa-copy text-purple-400';
+          icon.className = 'fas fa-copy';
+          icon.style.color = '';
         }, 2000);
       });
     }
+
+    // Navbar scroll
+    window.addEventListener('scroll', () => {
+      document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+    });
   </script>
 </body>
 </html>
