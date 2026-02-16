@@ -81,7 +81,7 @@ Be concise and clear.
 // =======================
 exports.createSpace = async (req, res) => {
   try {
-    const { companyName, jobPosition, interviewRounds, jobDescription } =
+    const { companyName, jobPosition, interviewRounds, jobDescription, experienceLevel } =
       req.body;
 
     const rounds = Array.isArray(interviewRounds)
@@ -123,6 +123,7 @@ exports.createSpace = async (req, res) => {
       studentId: req.session.uniqueId,
       companyName,
       jobPosition,
+      experienceLevel: experienceLevel || 'fresher',
       interviewRounds: rounds.map((round) => ({ name: round })),
       jobDescription: isJobDescriptionValid ? jobDescription : "N/A",
       resumePath: fileName,
@@ -271,5 +272,183 @@ exports.startInterviewRound = async (req, res) => {
   } catch (err) {
     console.error("Error starting interview round:", err);
     res.status(500).send("Error starting interview round");
+  }
+};
+
+// =======================
+// Extract Score from AI Summary
+// =======================
+function extractScoreFromSummary(summary) {
+  if (!summary) return null;
+  
+  // Try multiple patterns the AI models use in their evaluations
+  const patterns = [
+    /(?:overall\s*score|final\s*(?:verdict|score)|score)\s*[:\-—]\s*(\d+(?:\.\d+)?)\s*\/\s*10/i,
+    /(\d+(?:\.\d+)?)\s*\/\s*10/i,
+    /(\d+(?:\.\d+)?)\s*out\s*of\s*10/i,
+    /score\s*[:\-—]\s*(\d+(?:\.\d+)?)%/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = summary.match(pattern);
+    if (match) {
+      let score = parseFloat(match[1]);
+      // If score is out of 10, convert to percentage
+      if (score <= 10) score = score * 10;
+      return Math.min(100, Math.round(score));
+    }
+  }
+  return null;
+}
+
+// =======================
+// Extract Verdict from AI Summary
+// =======================
+function extractVerdictFromSummary(summary) {
+  if (!summary) return null;
+  
+  const verdictPatterns = [
+    /strong\s*hire/i,
+    /hire/i,
+    /no\s*hire/i,
+    /pass/i,
+    /fail/i,
+  ];
+  
+  if (/strong\s*hire/i.test(summary)) return "Strong Hire";
+  if (/no\s*hire/i.test(summary)) return "No Hire";
+  if (/\bhire\b/i.test(summary)) return "Hire";
+  if (/\bfail\b/i.test(summary)) return "Fail";
+  if (/\bpass\b/i.test(summary)) return "Pass";
+  return null;
+}
+
+// =======================
+// Get Performance Data
+// =======================
+exports.getPerformance = async (req, res) => {
+  try {
+    const spaces = await Space.find({ studentId: req.session.uniqueId }).sort({ createdAt: -1 });
+    const session = await Session.findOne({
+      uniqueId: req.session.uniqueId,
+    });
+
+    // Build detailed analytics from real data
+    const roundAnalytics = []; // per-completed-round analytics
+    const roundTypeStats = {}; // aggregated by round type (HR, Technical, etc.)
+    const spaceAnalytics = []; // per-space analytics
+    let totalScore = 0;
+    let scoredRounds = 0;
+
+    spaces.forEach(space => {
+      const spaceData = {
+        id: space._id,
+        companyName: space.companyName,
+        jobPosition: space.jobPosition,
+        experienceLevel: space.experienceLevel,
+        createdAt: space.createdAt,
+        updatedAt: space.updatedAt,
+        rounds: [],
+        avgScore: null,
+      };
+
+      let spaceScoreSum = 0;
+      let spaceScoreCount = 0;
+
+      if (space.interviewRounds) {
+        space.interviewRounds.forEach(round => {
+          const score = extractScoreFromSummary(round.summary);
+          const verdict = extractVerdictFromSummary(round.summary);
+
+          const roundData = {
+            spaceId: space._id,
+            companyName: space.companyName,
+            jobPosition: space.jobPosition,
+            roundName: round.name,
+            status: round.status,
+            score: score,
+            verdict: verdict,
+            date: space.updatedAt || space.createdAt,
+          };
+
+          spaceData.rounds.push(roundData);
+
+          if (round.status === 'completed') {
+            roundAnalytics.push(roundData);
+
+            if (score !== null) {
+              totalScore += score;
+              scoredRounds++;
+              spaceScoreSum += score;
+              spaceScoreCount++;
+
+              // Aggregate by round type
+              if (!roundTypeStats[round.name]) {
+                roundTypeStats[round.name] = { total: 0, count: 0, scores: [] };
+              }
+              roundTypeStats[round.name].total += score;
+              roundTypeStats[round.name].count++;
+              roundTypeStats[round.name].scores.push(score);
+            }
+          }
+        });
+      }
+
+      spaceData.avgScore = spaceScoreCount > 0 ? Math.round(spaceScoreSum / spaceScoreCount) : null;
+      spaceAnalytics.push(spaceData);
+    });
+
+    // Compute aggregated stats
+    const avgScore = scoredRounds > 0 ? Math.round(totalScore / scoredRounds) : null;
+    
+    // Round type averages for pie/radar chart
+    const roundTypeAverages = {};
+    Object.keys(roundTypeStats).forEach(name => {
+      roundTypeAverages[name] = Math.round(roundTypeStats[name].total / roundTypeStats[name].count);
+    });
+
+    // Score trend (chronological, for line chart)
+    const scoreTrend = roundAnalytics
+      .filter(r => r.score !== null)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map(r => ({
+        label: `${r.companyName} - ${r.roundName}`,
+        score: r.score,
+        date: r.date,
+      }));
+
+    // Fetch Q&A counts per space
+    const QuestionAnswer = require("../models/questionAnswerModel");
+    const qaCounts = await QuestionAnswer.aggregate([
+      { $match: { spaceId: { $in: spaces.map(s => s._id) } } },
+      { $group: { _id: "$spaceId", totalQuestions: { $sum: 1 }, answeredQuestions: { $sum: { $cond: [{ $ne: ["$answer", ""] }, 1, 0] } } } },
+    ]);
+    const qaMap = {};
+    qaCounts.forEach(item => {
+      qaMap[item._id.toString()] = item;
+    });
+
+    const totalQuestions = qaCounts.reduce((s, i) => s + i.totalQuestions, 0);
+    const totalAnswered = qaCounts.reduce((s, i) => s + i.answeredQuestions, 0);
+
+    res.render("student/performance", {
+      spaces,
+      session,
+      name: session ? session.name : "User",
+      uniqueId: req.session.uniqueId,
+      // New analytics data
+      avgScore,
+      scoredRounds,
+      roundAnalytics: JSON.stringify(roundAnalytics),
+      roundTypeAverages: JSON.stringify(roundTypeAverages),
+      scoreTrend: JSON.stringify(scoreTrend),
+      spaceAnalytics: JSON.stringify(spaceAnalytics),
+      totalQuestions,
+      totalAnswered,
+      qaMap: JSON.stringify(qaMap),
+    });
+  } catch (err) {
+    console.error("Error fetching performance data:", err);
+    res.status(500).send("Error fetching performance data.");
   }
 };

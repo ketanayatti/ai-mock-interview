@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Analytics | CommunicateAI Pro</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="/css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ===== Performance Page-Specific Styles ===== */
+
+    /* Chart panels */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .chart-panel {
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .chart-panel h4 {
+      margin: 0 0 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-panel h4 i {
+      color: var(--accent-color);
+      font-size: 14px;
+    }
+
+    .chart-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .chart-empty i {
+      font-size: 32px;
+      margin-bottom: 12px;
+      opacity: 0.25;
+      color: var(--text-quaternary);
+    }
+
+    /* AI Insights Panel */
+    .ai-panel {
+      background: var(--surface-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .ai-panel-banner {
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent-color), #8b5cf6, var(--accent-color));
+      background-size: 200% 100%;
+      animation: ai-shimmer 4s linear infinite;
+    }
+
+    @keyframes ai-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .ai-panel-body {
+      padding: 28px;
+    }
+
+    .ai-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .ai-panel-header h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+    }
+
+    .ai-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: var(--accent-subtle);
+      color: var(--accent-color);
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+    }
+
+    .ai-insights-content {
+      display: none;
+    }
+
+    .ai-insights-content.active {
+      display: block;
+      animation: tabFadeIn 400ms ease;
+    }
+
+    .ai-summary-box {
+      background: var(--accent-subtle);
+      border: 1px solid rgba(0, 113, 227, 0.08);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .ai-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .ai-list-section h4 {
+      font-size: 14px;
+      margin: 0 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ai-list-section ul li {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--divider);
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.6;
+    }
+
+    .ai-list-section ul li:last-child {
+      border-bottom: none;
+    }
+
+    .ai-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    .ai-dot-green { background: var(--success-color); }
+    .ai-dot-red { background: var(--danger-color); }
+    .ai-dot-blue { background: var(--accent-color); }
+
+    .ai-method-text {
+      font-size: 11px;
+      color: var(--text-quaternary);
+      text-align: right;
+      margin-top: 16px;
+      font-style: italic;
+    }
+
+    .ai-placeholder {
+      text-align: center;
+      padding: 32px 0;
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+
+    .ai-placeholder i {
+      font-size: 28px;
+      display: block;
+      margin-bottom: 10px;
+      opacity: 0.2;
+      color: var(--text-quaternary);
+    }
+
+    /* Verdict badges for AI */
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .verdict-hire { background: var(--success-subtle); color: #248A3D; }
+    .verdict-strong-hire { background: rgba(52, 199, 89, 0.18); color: #1a7e31; }
+    .verdict-no-hire { background: var(--danger-subtle); color: #D70015; }
+    .verdict-borderline { background: var(--warning-subtle); color: #B25000; }
+
+    /* Score colors in table */
+    .score-high { color: #248A3D; font-weight: 600; }
+    .score-mid { color: #B25000; font-weight: 600; }
+    .score-low { color: #D70015; font-weight: 600; }
+
+    /* Button loading spinner */
+    .btn .btn-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 600ms linear infinite;
+      display: none;
+    }
+
+    /* Responsive overrides */
+    @media (max-width: 900px) {
+      .chart-grid { grid-template-columns: 1fr; }
+      .ai-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 480px) {
+      .grid-cols-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="dashboard-layout">
+    <!-- Sidebar (identical to dashboard) -->
+    <aside class="sidebar">
+      <div class="mb-8 px-2">
+        <a href="/" class="flex items-center gap-2 font-bold text-primary">
+          <div
+            style="width: 24px; height: 24px; background: var(--text-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-robot text-white" style="font-size: 12px;"></i>
+          </div>
+          CommunicateAI
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="/dashboard" class="sidebar-link">
+          <i class="fas fa-columns" style="width: 20px;"></i>
+          Dashboard
+        </a>
+        <a href="/performance" class="sidebar-link active">
+          <i class="fas fa-chart-bar" style="width: 20px;"></i>
+          Performance
+        </a>
+        <a href="#" class="sidebar-link">
+          <i class="fas fa-cog" style="width: 20px;"></i>
+          Settings
+        </a>
+      </nav>
+
+      <div class="mt-auto px-2">
+        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-xs font-bold text-primary">
+            <%= name %>
+          </p>
+          <p class="text-xs text-secondary truncate"
+            title="Session: <%= uniqueId || (session && session.uniqueId) || 'N/A' %>">ID: <%= uniqueId ?
+              uniqueId.substring(0,8) + '...' : 'N/A' %>
+          </p>
+        </div>
+        <a href="/end-session" class="sidebar-link mt-2 text-danger">
+          <i class="fas fa-sign-out-alt" style="width: 20px;"></i>
+          Sign Out
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- Header -->
+      <header class="flex justify-between items-center mb-10">
+        <div>
+          <h2 class="mb-1">Performance Analytics</h2>
+          <p class="text-sm">Real-time insights from your interview data, powered by multi-AI analysis.</p>
+        </div>
+      </header>
+
+      <%
+        // Compute real stats
+        let totalRounds = 0;
+        let completedRounds = 0;
+        let notCompletedRounds = 0;
+        let inProgressRounds = 0;
+
+        if (spaces) {
+          spaces.forEach(space => {
+            if (space.interviewRounds) {
+              totalRounds += space.interviewRounds.length;
+              space.interviewRounds.forEach(r => {
+                if (r.status === 'completed') completedRounds++;
+                else if (r.status === 'in_progress') inProgressRounds++;
+                else notCompletedRounds++;
+              });
+            }
+          });
+        }
+
+        const completionRate = totalRounds > 0 ? Math.round((completedRounds / totalRounds) * 100) : 0;
+        const displayAvgScore = avgScore !== null && avgScore !== undefined ? avgScore : null;
+        const displayScoredRounds = scoredRounds || 0;
+      %>
+
+      <!-- Stats Row -->
+      <div class="grid grid-cols-4 gap-6 mb-10">
+        <div class="stat-card">
+          <div class="stat-label">Completed Rounds</div>
+          <div class="stat-value"><%= completedRounds %></div>
+          <div class="stat-sub">of <%= totalRounds %> total across <%= spaces ? spaces.length : 0 %> space<%= spaces && spaces.length !== 1 ? 's' : '' %></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Completion Rate</div>
+          <div class="stat-value"><%= completionRate %>%</div>
+          <div class="progress-bar-container mt-3">
+            <div class="progress-bar-fill" style="width: <%= completionRate %>%; background: var(--success-color);"></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Questions Answered</div>
+          <div class="stat-value"><%= totalAnswered || 0 %></div>
+          <div class="stat-sub">of <%= totalQuestions || 0 %> total questions asked</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Average Score</div>
+          <% if (displayAvgScore !== null) { %>
+            <div class="stat-value"><%= displayAvgScore %><span class="text-tertiary text-lg">%</span></div>
+            <div class="progress-bar-container mt-3">
+              <div class="progress-bar-fill" style="width: <%= displayAvgScore %>%;"></div>
+            </div>
+            <div class="stat-sub">across <%= displayScoredRounds %> scored round<%= displayScoredRounds !== 1 ? 's' : '' %></div>
+          <% } else { %>
+            <div class="stat-value" style="color: var(--text-tertiary);">—</div>
+            <div class="stat-sub">Complete interviews to see score</div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="chart-grid mb-10">
+        <!-- Score Trend -->
+        <div class="chart-panel">
+          <h4><i class="fas fa-chart-line"></i> Score Trend</h4>
+          <div id="trendEmpty" class="chart-empty" style="display: none;">
+            <i class="fas fa-chart-line"></i>
+            <span>No scored interviews yet.<br>Complete rounds to see your performance trend.</span>
+          </div>
+          <canvas id="trendChart" height="220"></canvas>
+        </div>
+
+        <!-- Round Type Breakdown -->
+        <div class="chart-panel">
+          <h4><i class="fas fa-chart-pie"></i> Avg Score by Round Type</h4>
+          <div id="roundTypeEmpty" class="chart-empty" style="display: none;">
+            <i class="fas fa-chart-pie"></i>
+            <span>No scored rounds yet.<br>Complete rounds to see breakdown.</span>
+          </div>
+          <canvas id="roundTypeChart" height="220"></canvas>
+        </div>
+
+        <!-- Per-Company Performance -->
+        <div class="chart-panel">
+          <h4><i class="fas fa-building"></i> Performance by Company</h4>
+          <div id="spaceChartEmpty" class="chart-empty" style="display: none;">
+            <i class="fas fa-building"></i>
+            <span>No completed spaces yet.</span>
+          </div>
+          <canvas id="spaceChart" height="220"></canvas>
+        </div>
+
+        <!-- AI Skill Radar -->
+        <div class="chart-panel">
+          <h4>
+            <i class="fas fa-crosshairs"></i> Skill Radar
+            <span class="ai-tag ml-2">AI-Powered</span>
+          </h4>
+          <div id="radarEmpty" class="chart-empty">
+            <i class="fas fa-crosshairs"></i>
+            <span>Click "Generate AI Insights" below<br>to populate this radar chart.</span>
+          </div>
+          <canvas id="radarChart" height="220" style="display: none;"></canvas>
+        </div>
+      </div>
+
+      <!-- AI Insights Panel -->
+      <div class="ai-panel mb-10">
+        <div class="ai-panel-banner"></div>
+        <div class="ai-panel-body">
+          <div class="ai-panel-header">
+            <h3>
+              <i class="fas fa-brain" style="color: var(--accent-color);"></i>
+              AI Performance Insights
+              <span class="ai-tag">3-AI Pipeline</span>
+            </h3>
+            <button class="btn btn-accent btn-sm" id="generateInsightsBtn" onclick="generateAIInsights()">
+              <span class="btn-spinner" id="insightsSpinner"></span>
+              <i class="fas fa-bolt" id="insightsBoltIcon"></i>
+              <span id="insightsBtnText">Generate AI Insights</span>
+            </button>
+          </div>
+
+          <div class="ai-insights-content" id="aiInsightsContent">
+            <!-- Populated dynamically -->
+          </div>
+
+          <div id="aiInsightsPlaceholder" class="ai-placeholder">
+            <i class="fas fa-wand-magic-sparkles"></i>
+            Click "Generate AI Insights" to analyze your performance across all completed interviews using Gemini, OpenAI, and Cohere.
+          </div>
+        </div>
+      </div>
+
+      <!-- Interview History Table -->
+      <div class="mb-4 flex items-center justify-between">
+        <h3>Interview History</h3>
+        <span class="text-sm text-tertiary"><%= completedRounds %> completed</span>
+      </div>
+
+      <div class="table-container mb-10">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Company</th>
+              <th>Position</th>
+              <th>Round</th>
+              <th>Score</th>
+              <th>Verdict</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (spaces && spaces.length > 0) { %>
+              <%
+                const allActivities = [];
+                const parsedRoundAnalytics = JSON.parse(roundAnalytics);
+
+                spaces.forEach(space => {
+                  if (space.interviewRounds) {
+                    space.interviewRounds.forEach(round => {
+                      const analytic = parsedRoundAnalytics.find(a =>
+                        a.companyName === space.companyName &&
+                        a.roundName === round.name &&
+                        String(a.spaceId) === String(space._id)
+                      );
+
+                      allActivities.push({
+                        date: space.updatedAt || space.createdAt,
+                        company: space.companyName,
+                        position: space.jobPosition,
+                        round: round.name,
+                        status: round.status,
+                        score: analytic ? analytic.score : null,
+                        verdict: analytic ? analytic.verdict : null,
+                      });
+                    });
+                  }
+                });
+
+                allActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
+                const recentActivities = allActivities.slice(0, 20);
+              %>
+              <% recentActivities.forEach(activity => { %>
+                <tr>
+                  <td style="white-space: nowrap;">
+                    <%= new Date(activity.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) %>
+                  </td>
+                  <td>
+                    <span class="font-medium text-primary"><%= activity.company %></span>
+                  </td>
+                  <td class="text-secondary"><%= activity.position %></td>
+                  <td><%= activity.round %></td>
+                  <td class="<%= activity.score !== null ? (activity.score >= 70 ? 'score-high' : activity.score >= 50 ? 'score-mid' : 'score-low') : '' %>">
+                    <%= activity.score !== null ? activity.score + '%' : '—' %>
+                  </td>
+                  <td>
+                    <% if (activity.verdict) { %>
+                      <% const vClass = activity.verdict.toLowerCase().includes('strong') ? 'verdict-strong-hire' :
+                           activity.verdict.toLowerCase().includes('no') ? 'verdict-no-hire' :
+                           activity.verdict.toLowerCase().includes('hire') ? 'verdict-hire' : 'verdict-borderline'; %>
+                      <span class="verdict-badge <%= vClass %>"><%= activity.verdict %></span>
+                    <% } else { %>
+                      <span class="text-tertiary">—</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (activity.status === 'completed') { %>
+                      <span class="badge badge-success"><i class="fas fa-check" style="font-size: 8px;"></i> Completed</span>
+                    <% } else if (activity.status === 'in_progress') { %>
+                      <span class="badge badge-warning"><i class="fas fa-spinner" style="font-size: 8px;"></i> In Progress</span>
+                    <% } else { %>
+                      <span class="badge badge-neutral"><i class="fas fa-clock" style="font-size: 8px;"></i> Pending</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="7" class="text-center p-8">
+                  <div class="flex flex-col items-center justify-center">
+                    <div class="mb-4 p-4 bg-gray-50 rounded-full">
+                      <i class="fas fa-inbox text-secondary text-2xl"></i>
+                    </div>
+                    <p class="text-secondary mb-4">No interview activity yet. Create an interview space to get started.</p>
+                    <a href="/dashboard" class="btn btn-primary btn-sm">Go to Dashboard</a>
+                  </div>
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ===== Data from Server =====
+    const scoreTrend = <%- scoreTrend %>;
+    const roundTypeAverages = <%- roundTypeAverages %>;
+    const spaceAnalytics = <%- spaceAnalytics %>;
+
+    // ===== Chart.js Config =====
+    Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+    Chart.defaults.color = '#86868B';
+
+    const palette = ['#0071E3', '#34C759', '#FF9F0A', '#FF3B30', '#AF52DE', '#5AC8FA', '#FF2D55', '#30D158'];
+
+    // ===== 1. Score Trend Line Chart =====
+    (function() {
+      const canvas = document.getElementById('trendChart');
+      const empty = document.getElementById('trendEmpty');
+
+      if (scoreTrend.length === 0) {
+        canvas.style.display = 'none';
+        empty.style.display = 'flex';
+        return;
+      }
+
+      new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: scoreTrend.map(item => item.label),
+          datasets: [{
+            label: 'Score %',
+            data: scoreTrend.map(item => item.score),
+            borderColor: '#0071E3',
+            backgroundColor: 'rgba(0, 113, 227, 0.06)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#0071E3',
+            pointBorderColor: '#FFFFFF',
+            pointBorderWidth: 2,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1D1D1F',
+              titleColor: '#fff',
+              bodyColor: '#ccc',
+              cornerRadius: 8,
+              padding: 12,
+              callbacks: { label: c => 'Score: ' + c.parsed.y + '%' }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true, max: 100,
+              grid: { color: 'rgba(0,0,0,0.04)' },
+              ticks: { callback: v => v + '%', font: { size: 11 } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, maxRotation: 45 }
+            }
+          }
+        }
+      });
+    })();
+
+    // ===== 2. Round Type Doughnut =====
+    (function() {
+      const canvas = document.getElementById('roundTypeChart');
+      const empty = document.getElementById('roundTypeEmpty');
+      const labels = Object.keys(roundTypeAverages);
+      const values = Object.values(roundTypeAverages);
+
+      if (labels.length === 0) {
+        canvas.style.display = 'none';
+        empty.style.display = 'flex';
+        return;
+      }
+
+      new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: labels.map(l => l + ' Round'),
+          datasets: [{
+            data: values,
+            backgroundColor: palette.slice(0, labels.length),
+            borderWidth: 0,
+            hoverOffset: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          cutout: '68%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                usePointStyle: true, boxWidth: 8, padding: 16, font: { size: 12 },
+                generateLabels: chart => chart.data.labels.map((label, i) => ({
+                  text: label + ': ' + chart.data.datasets[0].data[i] + '%',
+                  fillStyle: chart.data.datasets[0].backgroundColor[i],
+                  pointStyle: 'circle', index: i,
+                }))
+              }
+            },
+            tooltip: {
+              backgroundColor: '#1D1D1F',
+              titleColor: '#fff', bodyColor: '#ccc',
+              cornerRadius: 8,
+              callbacks: { label: c => 'Avg Score: ' + c.parsed + '%' }
+            }
+          }
+        }
+      });
+    })();
+
+    // ===== 3. Company Bar Chart =====
+    (function() {
+      const canvas = document.getElementById('spaceChart');
+      const empty = document.getElementById('spaceChartEmpty');
+      const scored = spaceAnalytics.filter(s => s.avgScore !== null);
+
+      if (scored.length === 0) {
+        canvas.style.display = 'none';
+        empty.style.display = 'flex';
+        return;
+      }
+
+      new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: scored.map(s => s.companyName),
+          datasets: [{
+            label: 'Avg Score %',
+            data: scored.map(s => s.avgScore),
+            backgroundColor: scored.map((_, i) => palette[i % palette.length] + 'cc'),
+            borderColor: scored.map((_, i) => palette[i % palette.length]),
+            borderWidth: 1.5,
+            borderRadius: 6,
+            maxBarThickness: 50,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1D1D1F',
+              titleColor: '#fff', bodyColor: '#ccc',
+              cornerRadius: 8,
+              callbacks: {
+                afterTitle: items => {
+                  const s = scored[items[0].dataIndex];
+                  return s.jobPosition + ' (' + s.experienceLevel + ')';
+                },
+                label: c => 'Score: ' + c.parsed.y + '%'
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true, max: 100,
+              grid: { color: 'rgba(0,0,0,0.04)' },
+              ticks: { callback: v => v + '%', font: { size: 11 } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+    })();
+
+    // ===== 4. AI Insights =====
+    let radarChartInstance = null;
+
+    async function generateAIInsights() {
+      const btn = document.getElementById('generateInsightsBtn');
+      const spinner = document.getElementById('insightsSpinner');
+      const bolt = document.getElementById('insightsBoltIcon');
+      const btnText = document.getElementById('insightsBtnText');
+      const content = document.getElementById('aiInsightsContent');
+      const placeholder = document.getElementById('aiInsightsPlaceholder');
+
+      btn.disabled = true;
+      spinner.style.display = 'block';
+      bolt.style.display = 'none';
+      btnText.textContent = 'Analyzing with AI...';
+
+      try {
+        const res = await fetch('/api/performance-insights');
+        const data = await res.json();
+
+        if (!data.success || !data.insights) {
+          placeholder.innerHTML = '<i class="fas fa-info-circle"></i>' +
+            (data.message || 'Unable to generate insights. Complete at least one interview first.');
+          return;
+        }
+
+        const ins = data.insights;
+        placeholder.style.display = 'none';
+        content.classList.add('active');
+
+        // Verdict badge class
+        let vClass = 'verdict-borderline';
+        const v = (ins.overallVerdict || '').toLowerCase();
+        if (v.includes('strong hire')) vClass = 'verdict-strong-hire';
+        else if (v.includes('no hire')) vClass = 'verdict-no-hire';
+        else if (v.includes('hire')) vClass = 'verdict-hire';
+
+        content.innerHTML = `
+          <div class="flex items-center gap-5 mb-6">
+            <div>
+              <span style="font-size: 40px; font-weight: 700; color: var(--accent-color); letter-spacing: -0.02em;">${ins.overallScore || '—'}</span>
+              <span class="text-tertiary text-lg">%</span>
+            </div>
+            <span class="verdict-badge ${vClass}">
+              <i class="fas ${vClass === 'verdict-no-hire' ? 'fa-times-circle' : 'fa-check-circle'}" style="font-size: 11px;"></i>
+              ${ins.overallVerdict || 'N/A'}
+            </span>
+          </div>
+
+          <div class="ai-summary-box">${ins.narrativeSummary || 'AI analysis complete.'}</div>
+
+          <div class="ai-grid">
+            <div>
+              <div class="ai-list-section">
+                <h4><i class="fas fa-trophy" style="color: var(--success-color);"></i> Top Strengths</h4>
+                <ul>${(ins.topStrengths || []).map(s => '<li><span class="ai-dot ai-dot-green"></span>' + s + '</li>').join('')}</ul>
+              </div>
+
+              <div class="ai-list-section mt-6">
+                <h4><i class="fas fa-exclamation-triangle" style="color: var(--danger-color);"></i> Critical Weaknesses</h4>
+                <ul>${(ins.criticalWeaknesses || []).map(w => '<li><span class="ai-dot ai-dot-red"></span>' + w + '</li>').join('')}</ul>
+              </div>
+            </div>
+
+            <div>
+              <div class="ai-list-section">
+                <h4><i class="fas fa-rocket" style="color: var(--accent-color);"></i> Improvement Plan</h4>
+                <ul>${(ins.improvementPlan || []).map(a => '<li><span class="ai-dot ai-dot-blue"></span>' + a + '</li>').join('')}</ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-method-text">${ins.evaluationMethod || ''}</div>
+        `;
+
+        // ===== Update Radar Chart =====
+        const radarData = {};
+        if (ins.technicalScore != null) radarData['Technical'] = ins.technicalScore;
+        if (ins.communicationScore != null) radarData['Communication'] = ins.communicationScore;
+        if (ins.problemSolvingScore != null) radarData['Problem Solving'] = ins.problemSolvingScore;
+        if (ins.cultureFitScore != null) radarData['Culture Fit'] = ins.cultureFitScore;
+        if (ins.confidenceScore != null) radarData['Confidence'] = ins.confidenceScore;
+
+        const radarLabels = Object.keys(radarData);
+        const radarValues = Object.values(radarData);
+
+        if (radarLabels.length >= 3) {
+          document.getElementById('radarEmpty').style.display = 'none';
+          const radarCanvas = document.getElementById('radarChart');
+          radarCanvas.style.display = 'block';
+
+          if (radarChartInstance) radarChartInstance.destroy();
+
+          radarChartInstance = new Chart(radarCanvas.getContext('2d'), {
+            type: 'radar',
+            data: {
+              labels: radarLabels,
+              datasets: [{
+                label: 'Skill Score',
+                data: radarValues,
+                backgroundColor: 'rgba(0, 113, 227, 0.08)',
+                borderColor: '#0071E3',
+                borderWidth: 2,
+                pointBackgroundColor: '#0071E3',
+                pointBorderColor: '#FFFFFF',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: '#1D1D1F',
+                  titleColor: '#fff', bodyColor: '#ccc',
+                  cornerRadius: 8,
+                  callbacks: { label: c => c.label + ': ' + c.parsed.r + '%' }
+                }
+              },
+              scales: {
+                r: {
+                  beginAtZero: true, max: 100,
+                  ticks: { stepSize: 20, font: { size: 10 }, backdropColor: 'transparent', color: '#86868B' },
+                  grid: { color: 'rgba(0,0,0,0.05)' },
+                  pointLabels: { font: { size: 12, weight: '600' }, color: '#6E6E73' },
+                  angleLines: { color: 'rgba(0,0,0,0.05)' },
+                }
+              }
+            }
+          });
+        }
+
+      } catch (err) {
+        console.error('Error:', err);
+        placeholder.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--danger-color);"></i>Error generating insights. Please try again.';
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        bolt.style.display = 'inline';
+        btnText.textContent = 'Regenerate Insights';
+      }
+    }
+  </script>
+</body>
+
+</html>

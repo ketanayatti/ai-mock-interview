@@ -1,7 +1,38 @@
 pipeline {
     agent any
 
+    environment {
+        JWT_SECRET     = credentials('JWT_SECRET')
+        SESSION_SECRET = credentials('SESSION_SECRET')
+        MONGO_URI      = credentials('MONGO_URI')
+        GMAIL_USER     = credentials('GMAIL_USER')
+        GMAIL_PASS     = credentials('GMAIL_PASS')
+        GEMINI_API_KEY = credentials('GEMINI_API_KEY')
+        API_KEY        = credentials('API_KEY')
+        OPENAI_API_KEY = credentials('OPENAI_API_KEY')
+        COHERE_API_KEY = credentials('COHERE_API_KEY') 
+    }
+
     stages {
+
+        stage('Prepare Environment') {
+            steps {
+                sh '''
+                echo "Creating runtime .env file"
+
+                echo "PORT=3000" > .env
+                echo "JWT_SECRET=$JWT_SECRET" >> .env
+                echo "SESSION_SECRET=$SESSION_SECRET" >> .env
+                echo "MONGO_URI=$MONGO_URI" >> .env
+                echo "GMAIL_USER=$GMAIL_USER" >> .env
+                echo "GMAIL_PASS=$GMAIL_PASS" >> .env
+                echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
+                echo "API_KEY=$API_KEY" >> .env
+                echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+                echo "COHERE_API_KEY=$COHERE_API_KEY" >> .env
+                '''
+            }
+        }
 
         stage('Deploy Staging') {
             when {

@@ -1,14 +1,18 @@
 // app.js
 const express = require('express');
 const path = require('path');
-const session = require('cookie-session');
+const cookieSession = require('cookie-session');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config(); // Load environment variables
+const cors = require('cors');
+require('dotenv').config();
 
 // Import routes
 const routes = require('./routes');
 
 const app = express();
+
+// Enable CORS (applied BEFORE routes)
+app.use(cors());
 
 // Configure rate limiters
 const apiLimiter = rateLimit({
@@ -31,24 +35,22 @@ const createSpaceLimiter = rateLimit({
 
 const interviewLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // Limit each IP to 20 interview actions per hour
+  max: 50, // Limit each IP to 50 interview actions per hour (adaptive questioning uses ~15 per round)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Interview limit reached. Please try again later.' },
   keyGenerator: (req) => req.session.uniqueId || req.ip
 });
 
-// Session middleware
+// Session middleware (cookie-session compatible options)
 app.use(
-  session({
+  cookieSession({
+    name: 'session',
     secret: process.env.SESSION_SECRET || 'interviewAppSecret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    },
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
   })
 );
 
@@ -60,13 +62,16 @@ app.use(express.urlencoded({ extended: true }));
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
+// Handle favicon.ico to prevent 404 errors
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Apply rate limiting to specific routes
 app.use('/api/', apiLimiter);
 app.use('/spaces/create', createSpaceLimiter);
-app.use(['/generate-questions', '/finish-round'], interviewLimiter);
+app.use(['/generate-questions', '/next-question', '/finish-round'], interviewLimiter);
 
 // Routes
 app.use('/', routes);
@@ -98,7 +103,10 @@ app.use((err, req, res, next) => {
   
   // Handle file upload errors
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).send('File size exceeds the maximum limit (10MB)');
+    return res.status(400).render('error', {
+      title: 'File Too Large',
+      message: 'File size exceeds the maximum limit (10MB).'
+    });
   }
   
   // Default error response
