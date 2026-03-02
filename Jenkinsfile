@@ -35,12 +35,19 @@ pipeline {
         }
 
         stage('Deploy Staging') {
-            when { branch 'develop' }
-            steps {
-                sh 'docker compose down'
-                sh 'docker compose up -d --build'
-            }
-        }
+    when { branch 'develop' }
+    steps {
+        sh '''
+        echo "Cleaning old containers..."
+
+        docker compose down --remove-orphans || true
+        docker rm -f ai-mock-interview-mongo || true
+
+        echo "Starting fresh deployment..."
+        docker compose up -d --build
+        '''
+    }
+}
 
         stage('Deploy Production') {
             when { branch 'main' }
