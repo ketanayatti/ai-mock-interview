@@ -74,36 +74,33 @@ EOF
         }
 
         success {
-            emailext(
-                to: 'kethanayatti333@gmail.com',
-                from: 'kethanayatti333@gmail.com',
-                subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                mimeType: 'text/html',
-                body: """
-                <h2>✅ Build Successful</h2>
-                <p><b>Job:</b> ${env.JOB_NAME}</p>
-                <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                <p><b>Build Number:</b> ${env.BUILD_NUMBER}</p>
-                <p><a href="${env.BUILD_URL}">Open Build</a></p>
-                """
-            )
-        }
+    emailext(
+        from: 'kethanayatti333@gmail.com',
+        to: 'kethanayatti333@gmail.com',
+        subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+        mimeType: 'text/html',
+        body: """
+        <h2>Build Successful</h2>
+        <p><b>Job:</b> ${env.JOB_NAME}</p>
+        <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+        <p><a href="${env.BUILD_URL}">Open Build</a></p>
+        """
+    )
+}
 
         failure {
-            emailext(
-                to: 'kethanayatti333@gmail.com',
-                from: 'kethanayatti333@gmail.com',
-                subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                mimeType: 'text/html',
-                attachLog: true,
-                body: """
-                <h2>❌ Build Failed</h2>
-                <p><b>Job:</b> ${env.JOB_NAME}</p>
-                <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                <p><b>Build Number:</b> ${env.BUILD_NUMBER}</p>
-                <p><a href="${env.BUILD_URL}console">View Console Logs</a></p>
-                """
-            )
-        }
+    emailext(
+        from: 'kethanayatti333@gmail.com',
+        to: 'kethanayatti333@gmail.com',
+        subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+        mimeType: 'text/html',
+        body: """
+        <h2>Build Failed</h2>
+        <p><b>Job:</b> ${env.JOB_NAME}</p>
+        <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+        <p><a href="${env.BUILD_URL}">Check Logs</a></p>
+        """
+    )
+}
     }
 }
