@@ -43,7 +43,7 @@ EOF
                 echo "Stopping old containers..."
                 docker compose down --remove-orphans || true
 
-                echo "Removing conflicting containers..."
+                echo "Removing containers..."
                 docker rm -f ai-mock-interview || true
                 docker rm -f ai-mock-interview-mongo || true
 
@@ -74,33 +74,45 @@ EOF
         }
 
         success {
-    emailext(
-        from: 'kethanayatti333@gmail.com',
-        to: 'kethanayatti333@gmail.com',
-        subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-        mimeType: 'text/html',
-        body: """
-        <h2>Build Successful</h2>
-        <p><b>Job:</b> ${env.JOB_NAME}</p>
-        <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-        <p><a href="${env.BUILD_URL}">Open Build</a></p>
-        """
-    )
-}
+            script {
+                echo "Sending SUCCESS email..."
+
+                emailext(
+                    from: 'kethanayatti333@gmail.com',
+                    to: 'kethanayatti333@gmail.com',
+                    replyTo: 'kethanayatti333@gmail.com',
+                    subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    mimeType: 'text/html',
+                    body: """
+                    <h2>Build Successful</h2>
+                    <p><b>Job:</b> ${env.JOB_NAME}</p>
+                    <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+                    <p><b>Status:</b> SUCCESS</p>
+                    <p><a href="${env.BUILD_URL}">Open Build</a></p>
+                    """
+                )
+            }
+        }
 
         failure {
-    emailext(
-        from: 'kethanayatti333@gmail.com',
-        to: 'kethanayatti333@gmail.com',
-        subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-        mimeType: 'text/html',
-        body: """
-        <h2>Build Failed</h2>
-        <p><b>Job:</b> ${env.JOB_NAME}</p>
-        <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-        <p><a href="${env.BUILD_URL}">Check Logs</a></p>
-        """
-    )
-}
+            script {
+                echo "Sending FAILURE email..."
+
+                emailext(
+                    from: 'kethanayatti333@gmail.com',
+                    to: 'kethanayatti333@gmail.com',
+                    replyTo: 'kethanayatti333@gmail.com',
+                    subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    mimeType: 'text/html',
+                    body: """
+                    <h2>Build Failed</h2>
+                    <p><b>Job:</b> ${env.JOB_NAME}</p>
+                    <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+                    <p><b>Status:</b> FAILURE</p>
+                    <p><a href="${env.BUILD_URL}">Check Console Logs</a></p>
+                    """
+                )
+            }
+        }
     }
 }
