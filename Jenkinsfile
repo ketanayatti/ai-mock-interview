@@ -78,9 +78,7 @@ EOF
                 echo "Sending SUCCESS email..."
 
                 emailext(
-                    from: 'kethanayatti333@gmail.com',
                     to: 'kethanayatti333@gmail.com',
-                    replyTo: 'kethanayatti333@gmail.com',
                     subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                     mimeType: 'text/html',
                     body: """
@@ -99,9 +97,7 @@ EOF
                 echo "Sending FAILURE email..."
 
                 emailext(
-                    from: 'kethanayatti333@gmail.com',
                     to: 'kethanayatti333@gmail.com',
-                    replyTo: 'kethanayatti333@gmail.com',
                     subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                     mimeType: 'text/html',
                     body: """
