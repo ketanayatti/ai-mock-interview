@@ -56,31 +56,16 @@ pipeline {
     }
 
     post {
-        success {
-            emailext (
-                subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: """<h2>Pipeline Succeeded</h2>
-                    <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Build Number:</b> ${env.BUILD_NUMBER}</p>
-                    <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                    <p><b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-                    <p>The build completed successfully.</p>""",
-                to: 'kethanayatti333@gmail.com, mirjivijay16@gmail.com',
-                mimeType: 'text/html'
-            )
-        }
-        failure {
-            emailext (
-                subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: """<h2>Pipeline Failed</h2>
-                    <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Build Number:</b> ${env.BUILD_NUMBER}</p>
-                    <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                    <p><b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-                    <p>Please check the console output for details.</p>""",
-                to: 'kethanayatti333@gmail.com, mirjivijay16@gmail.com',
-                mimeType: 'text/html'
-            )
-        }
+    always {
+        echo "DEBUG: POST BLOCK EXECUTED"
     }
+
+    success {
+        echo "DEBUG: SUCCESS EXECUTED"
+    }
+
+    failure {
+        echo "DEBUG: FAILURE EXECUTED"
+    }
+}
 }
