@@ -10,7 +10,7 @@ pipeline {
         GEMINI_API_KEY = credentials('GEMINI_API_KEY')
         API_KEY        = credentials('API_KEY')
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
-        COHERE_API_KEY = credentials('COHERE_API_KEY') 
+        COHERE_API_KEY = credentials('COHERE_API_KEY')
     }
 
     stages {
@@ -35,9 +35,7 @@ pipeline {
         }
 
         stage('Deploy Staging') {
-            when {
-                branch 'develop'
-            }
+            when { branch 'develop' }
             steps {
                 sh 'docker compose down'
                 sh 'docker compose up -d --build'
@@ -45,9 +43,7 @@ pipeline {
         }
 
         stage('Deploy Production') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
                 sh 'docker compose -f docker-compose.prod.yml down'
                 sh 'docker compose -f docker-compose.prod.yml up -d --build'
@@ -56,16 +52,35 @@ pipeline {
     }
 
     post {
-    success {
-        echo "DEBUG: ABOUT TO SEND EMAIL"
 
-        emailext(
-            subject: "TEST EMAIL FROM JENKINS",
-            body: "If you received this, emailext works.",
-            to: "kethanayatti333@gmail.com"
-        )
+        success {
+            emailext(
+                subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                <h2>Build Successful</h2>
+                <p><b>Job:</b> ${env.JOB_NAME}</p>
+                <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+                <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                <p><a href="${env.BUILD_URL}">Open Build</a></p>
+                """,
+                mimeType: 'text/html',
+                to: 'kethanayatti333@gmail.com'
+            )
+        }
 
-        echo "DEBUG: EMAIL STEP FINISHED"
+        failure {
+            emailext(
+                subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                <h2>Build Failed</h2>
+                <p><b>Job:</b> ${env.JOB_NAME}</p>
+                <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+                <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                <p><a href="${env.BUILD_URL}">Check Console Logs</a></p>
+                """,
+                mimeType: 'text/html',
+                to: 'kethanayatti333@gmail.com'
+            )
+        }
     }
-}
 }
