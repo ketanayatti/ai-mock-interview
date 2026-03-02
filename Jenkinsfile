@@ -56,16 +56,16 @@ pipeline {
     }
 
     post {
-    always {
-        echo "DEBUG: POST BLOCK EXECUTED"
-    }
-
     success {
-        echo "DEBUG: SUCCESS EXECUTED"
-    }
+        echo "DEBUG: ABOUT TO SEND EMAIL"
 
-    failure {
-        echo "DEBUG: FAILURE EXECUTED"
+        emailext(
+            subject: "TEST EMAIL FROM JENKINS",
+            body: "If you received this, emailext works.",
+            to: "kethanayatti333@gmail.com"
+        )
+
+        echo "DEBUG: EMAIL STEP FINISHED"
     }
 }
 }
