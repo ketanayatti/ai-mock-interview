@@ -20,78 +20,89 @@ pipeline {
                 sh '''
                 echo "Creating runtime .env file"
 
-                echo "PORT=3000" > .env
-                echo "JWT_SECRET=$JWT_SECRET" >> .env
-                echo "SESSION_SECRET=$SESSION_SECRET" >> .env
-                echo "MONGO_URI=$MONGO_URI" >> .env
-                echo "GMAIL_USER=$GMAIL_USER" >> .env
-                echo "GMAIL_PASS=$GMAIL_PASS" >> .env
-                echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
-                echo "API_KEY=$API_KEY" >> .env
-                echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
-                echo "COHERE_API_KEY=$COHERE_API_KEY" >> .env
+                cat <<EOF > .env
+PORT=3000
+JWT_SECRET=$JWT_SECRET
+SESSION_SECRET=$SESSION_SECRET
+MONGO_URI=$MONGO_URI
+GMAIL_USER=$GMAIL_USER
+GMAIL_PASS=$GMAIL_PASS
+GEMINI_API_KEY=$GEMINI_API_KEY
+API_KEY=$API_KEY
+OPENAI_API_KEY=$OPENAI_API_KEY
+COHERE_API_KEY=$COHERE_API_KEY
+EOF
                 '''
             }
         }
 
         stage('Deploy Staging') {
-    when { branch 'develop' }
-    steps {
-        sh '''
-        echo "Stopping old containers..."
-        docker compose down --remove-orphans || true
+            when { branch 'develop' }
+            steps {
+                sh '''
+                echo "Stopping old containers..."
+                docker compose down --remove-orphans || true
 
-        echo "Removing conflicting containers..."
-        docker rm -f ai-mock-interview || true
-        docker rm -f ai-mock-interview-mongo || true
+                echo "Removing conflicting containers..."
+                docker rm -f ai-mock-interview || true
+                docker rm -f ai-mock-interview-mongo || true
 
-        echo "Cleaning unused networks..."
-        docker network prune -f || true
+                echo "Cleaning networks..."
+                docker network prune -f || true
 
-        echo "Deploying fresh containers..."
-        docker compose up -d --build
-        '''
-    }
-}
+                echo "Deploying containers..."
+                docker compose up -d --build
+                '''
+            }
+        }
 
         stage('Deploy Production') {
             when { branch 'main' }
             steps {
-                sh 'docker compose -f docker-compose.prod.yml down'
-                sh 'docker compose -f docker-compose.prod.yml up -d --build'
+                sh '''
+                docker compose -f docker-compose.prod.yml down || true
+                docker compose -f docker-compose.prod.yml up -d --build
+                '''
             }
         }
     }
 
     post {
 
+        always {
+            echo "Pipeline finished with status: ${currentBuild.currentResult}"
+        }
+
         success {
             emailext(
+                to: 'kethanayatti333@gmail.com',
+                from: 'kethanayatti333@gmail.com',
                 subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                mimeType: 'text/html',
                 body: """
-                <h2>Build Successful</h2>
+                <h2>✅ Build Successful</h2>
                 <p><b>Job:</b> ${env.JOB_NAME}</p>
                 <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                <p><b>Build Number:</b> ${env.BUILD_NUMBER}</p>
                 <p><a href="${env.BUILD_URL}">Open Build</a></p>
-                """,
-                mimeType: 'text/html',
-                to: 'kethanayatti333@gmail.com'
+                """
             )
         }
 
         failure {
             emailext(
+                to: 'kethanayatti333@gmail.com',
+                from: 'kethanayatti333@gmail.com',
                 subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                mimeType: 'text/html',
+                attachLog: true,
                 body: """
-                <h2>Build Failed</h2>
+                <h2>❌ Build Failed</h2>
                 <p><b>Job:</b> ${env.JOB_NAME}</p>
                 <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
-                <p><a href="${env.BUILD_URL}">Check Console Logs</a></p>
-                """,
-                mimeType: 'text/html',
-                to: 'kethanayatti333@gmail.com'
+                <p><b>Build Number:</b> ${env.BUILD_NUMBER}</p>
+                <p><a href="${env.BUILD_URL}console">View Console Logs</a></p>
+                """
             )
         }
     }
