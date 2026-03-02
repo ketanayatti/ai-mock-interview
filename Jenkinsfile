@@ -69,46 +69,23 @@ EOF
 
     post {
 
-        always {
-            echo "Pipeline finished with status: ${currentBuild.currentResult}"
-        }
+    always {
+        script {
 
-        success {
-            script {
-                echo "Sending SUCCESS email..."
+            emailext(
+                to: 'kethanayatti333@gmail.com',
+                subject: "Build ${currentBuild.currentResult}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: """
+                <h2>Build ${currentBuild.currentResult}</h2>
+                <p><b>Job:</b> ${env.JOB_NAME}</p>
+                <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+                <p><b>Status:</b> ${currentBuild.currentResult}</p>
+                <p><a href="${env.BUILD_URL}">Open Build</a></p>
+                """
+            )
 
-                emailext(
-                    to: 'kethanayatti333@gmail.com',
-                    subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                    mimeType: 'text/html',
-                    body: """
-                    <h2>Build Successful</h2>
-                    <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                    <p><b>Status:</b> SUCCESS</p>
-                    <p><a href="${env.BUILD_URL}">Open Build</a></p>
-                    """
-                )
-            }
-        }
-
-        failure {
-            script {
-                echo "Sending FAILURE email..."
-
-                emailext(
-                    to: 'kethanayatti333@gmail.com',
-                    subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                    mimeType: 'text/html',
-                    body: """
-                    <h2>Build Failed</h2>
-                    <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                    <p><b>Status:</b> FAILURE</p>
-                    <p><a href="${env.BUILD_URL}">Check Console Logs</a></p>
-                    """
-                )
-            }
         }
     }
+}
 }
