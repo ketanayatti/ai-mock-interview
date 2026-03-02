@@ -38,12 +38,17 @@ pipeline {
     when { branch 'develop' }
     steps {
         sh '''
-        echo "Cleaning old containers..."
-
+        echo "Stopping old containers..."
         docker compose down --remove-orphans || true
+
+        echo "Removing conflicting containers..."
+        docker rm -f ai-mock-interview || true
         docker rm -f ai-mock-interview-mongo || true
 
-        echo "Starting fresh deployment..."
+        echo "Cleaning unused networks..."
+        docker network prune -f || true
+
+        echo "Deploying fresh containers..."
         docker compose up -d --build
         '''
     }
