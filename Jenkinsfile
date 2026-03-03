@@ -68,24 +68,26 @@ EOF
     }
 
     post {
-
-    always {
-        script {
-
-            emailext(
-                to: 'mirjivijay16@gmail.com',
-                subject: "Build ${currentBuild.currentResult}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                mimeType: 'text/html',
-                body: """
-                <h2>Build ${currentBuild.currentResult}</h2>
-                <p><b>Job:</b> ${env.JOB_NAME}</p>
-                <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
-                <p><b>Status:</b> ${currentBuild.currentResult}</p>
-                <p><a href="${env.BUILD_URL}">Open Build</a></p>
-                """
-            )
-
+        always {
+            script {
+                emailext(
+                    to: "${env.GMAIL_USER}",
+                    subject: "Build ${currentBuild.currentResult}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    mimeType: 'text/html',
+                    body: """
+                        <div style="font-family: sans-serif;">
+                            <h2 style="color: ${currentBuild.currentResult == 'SUCCESS' ? 'green' : 'red'};">
+                                Build ${currentBuild.currentResult}
+                            </h2>
+                            <p><b>Job:</b> ${env.JOB_NAME}</p>
+                            <p><b>Branch:</b> ${env.BRANCH_NAME}</p>
+                            <p><b>Status:</b> ${currentBuild.currentResult}</p>
+                            <hr>
+                            <p><a href="${env.BUILD_URL}">View full build details in Jenkins</a></p>
+                        </div>
+                    """
+                )
+            }
         }
     }
-}
 }
