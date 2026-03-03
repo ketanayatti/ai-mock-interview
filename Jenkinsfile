@@ -73,7 +73,7 @@ EOF
         script {
 
             emailext(
-                to: 'kethanayatti333@gmail.com',
+                to: 'mirjivijay16@gmail.com',
                 subject: "Build ${currentBuild.currentResult}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 mimeType: 'text/html',
                 body: """
