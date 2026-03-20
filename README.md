@@ -3,10 +3,12 @@
 AI-powered mock interview platform with resume-based personalization, adaptive questioning, and multi-model performance evaluation.
 
 This README is both:
+
 - a development handbook (run locally, understand architecture, debug), and
 - a DevOps runbook (container deployment, Jenkins CI/CD, branch release flow).
 
 ## Table of Contents
+
 - [Product Overview](#product-overview)
 - [Core Features](#core-features)
 - [Tech Stack](#tech-stack)
@@ -26,6 +28,7 @@ This README is both:
 ## Product Overview
 
 The platform helps candidates practice realistic interview rounds by using:
+
 - resume parsing (PDF/DOCX),
 - AI-generated interview questions adapted to candidate level,
 - round-by-round evaluation summaries, and
@@ -55,17 +58,20 @@ It uses server-rendered EJS pages and MongoDB persistence, with Docker and Jenki
 ## Tech Stack
 
 ### Application
+
 - Node.js 20+
 - Express 4
 - EJS
 - MongoDB 7 + Mongoose
 
 ### AI Integrations
+
 - Google Gemini (`@google/genai`) - required
 - OpenAI (`openai`) - optional
 - Cohere (`cohere-ai`) - optional
 
 ### Security and Middleware
+
 - `cookie-session`
 - `express-rate-limit`
 - `cors`
@@ -73,6 +79,7 @@ It uses server-rendered EJS pages and MongoDB persistence, with Docker and Jenki
 - `dompurify` + `jsdom`
 
 ### DevOps
+
 - Docker (multi-stage image)
 - Docker Compose (dev and prod files)
 - Jenkins declarative pipeline
@@ -89,6 +96,7 @@ Browser (EJS Views)
 ```
 
 ### Runtime Components
+
 - Web app container: Node.js app on internal port `3000`
 - DB container: MongoDB 7
 - Named volumes:
@@ -96,6 +104,7 @@ Browser (EJS Views)
   - resume upload persistence
 
 ### Diagrams
+
 - Deployment architecture: `docs/deployment-infrastructure.png`
 - DevOps pipeline: `docs/devops-pipeline.png`
 - CI/CD workflow: `docs/cicd-workflow.png`
@@ -140,6 +149,7 @@ Browser (EJS Views)
 Use `.env-example` as baseline.
 
 ### Required
+
 - `PORT` (default `3000`)
 - `NODE_ENV` (`development` or `production`)
 - `SESSION_SECRET`
@@ -147,20 +157,24 @@ Use `.env-example` as baseline.
 - `GEMINI_API_KEY`
 
 ### Optional (feature-enhancing)
+
 - `OPENAI_API_KEY`
 - `COHERE_API_KEY`
 
 ### Optional (email)
+
 - `GMAIL_USER`
 - `GMAIL_PASS`
 
 ### Present for compatibility
+
 - `JWT_SECRET`
 - `API_KEY`
 
 ## Local Development
 
 ### Prerequisites
+
 - Node.js 20+
 - npm 10+
 - MongoDB running (local or Atlas)
@@ -176,6 +190,7 @@ npm run dev
 App URL: `http://localhost:3000`
 
 ### Available Scripts
+
 - `npm run dev` - starts `nodemon server.js`
 - `npm start` - starts `node server.js`
 - `npm test` - placeholder script (currently not implemented)
@@ -183,11 +198,13 @@ App URL: `http://localhost:3000`
 ## Docker Deployment
 
 ### Why Docker Here
+
 - predictable runtime across environments
 - image-level dependency packaging
 - easier staging/prod parity
 
 ### Image Details
+
 - multi-stage build (`node:20-alpine`)
 - production dependencies only
 - non-root runtime user (`appuser`)
@@ -201,6 +218,7 @@ docker compose logs -f app
 ```
 
 Exposed:
+
 - app: `${PORT:-3000}:3000`
 - mongo: `27017:27017`
 
@@ -219,6 +237,7 @@ docker compose -f docker-compose.prod.yml logs -f app
 ```
 
 Exposed:
+
 - app: `4000:3000`
 - mongo: not externally published
 
@@ -233,12 +252,14 @@ docker compose -f docker-compose.prod.yml down
 The Jenkins pipeline is branch-aware and deploys via Docker Compose.
 
 ### Pipeline Stages
+
 1. Prepare `.env` from Jenkins credentials.
 2. Deploy staging when branch is `develop`.
 3. Deploy production when branch is `main`.
 4. Send build notification email in post actions.
 
 ### Required Jenkins Credentials
+
 - `JWT_SECRET`
 - `SESSION_SECRET`
 - `MONGO_URI`
@@ -250,10 +271,12 @@ The Jenkins pipeline is branch-aware and deploys via Docker Compose.
 - `COHERE_API_KEY`
 
 ### Deployment Mapping
+
 - `develop` -> `docker-compose.yml` -> staging
 - `main` -> `docker-compose.prod.yml` -> production
 
 ### Jenkins Agent Requirements
+
 - Docker Engine + Compose plugin/CLI available
 - permission to run Docker commands
 - outbound network access to AI providers and MongoDB endpoint
@@ -261,10 +284,12 @@ The Jenkins pipeline is branch-aware and deploys via Docker Compose.
 ## Branching and Release Strategy
 
 ### Branches
+
 - `develop`: active integration and staging deploy
 - `main`: production deploy
 
 ### Recommended Flow
+
 1. Create feature branch from `develop`.
 2. Open PR into `develop`.
 3. Validate on staging deployment.
@@ -273,23 +298,27 @@ The Jenkins pipeline is branch-aware and deploys via Docker Compose.
 ## API Endpoints
 
 ### Session and Entry
+
 - `GET /`
 - `GET /welcome`
 - `POST /api/start-new`
 - `POST /api/continue-session`
 
 ### Profile and Dashboard (protected)
+
 - `GET /dashboard`
 - `GET /profile`
 - `POST /update-profile`
 - `GET /performance`
 
 ### Interview Space (protected)
+
 - `POST /spaces/create`
 - `GET /space/:id`
 - `GET /space/resume/download/:id`
 
 ### Interview Engine (protected)
+
 - `GET /space/:spaceId/round/:roundName/start`
 - `GET /generate-questions/:spaceId/:roundName`
 - `POST /next-question/:spaceId/:roundName`
@@ -348,21 +377,25 @@ docker exec ai-mock-interview-mongo mongorestore --archive=/tmp/backup.archive -
 ## Troubleshooting
 
 ### App cannot connect to MongoDB
+
 - Verify `MONGO_URI` value in `.env`.
 - Ensure Mongo service is healthy (`docker compose ps`).
 - Check Mongo logs for auth/network errors.
 
 ### AI features fail
+
 - Ensure `GEMINI_API_KEY` is valid.
 - If OpenAI/Cohere are absent, app should continue with Gemini-only path.
 - Check app logs for model/provider errors.
 
 ### Upload fails
+
 - Confirm file type is PDF or DOCX.
 - Confirm file size <= 10 MB.
 - Verify write permission for `public/Resumes` or mounted volume.
 
 ### Jenkins deployment fails
+
 - Confirm all Jenkins credentials exist with exact IDs.
 - Confirm Docker is installed and usable by Jenkins user.
 - Confirm correct branch conditions (`develop` and `main`).
