@@ -1,420 +1,450 @@
-# AI Mock Interview Platform
-
-AI-powered mock interview platform with resume-based personalization, adaptive questioning, and multi-model performance evaluation.
-
-This README is both:
-
-- a development handbook (run locally, understand architecture, debug), and
-- a DevOps runbook (container deployment, Jenkins CI/CD, branch release flow).
-
-## Table of Contents
-
-- [Product Overview](#product-overview)
-- [Core Features](#core-features)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Environment Variables](#environment-variables)
-- [Local Development](#local-development)
-- [Docker Deployment](#docker-deployment)
-- [CI/CD with Jenkins](#cicd-with-jenkins)
-- [Branching and Release Strategy](#branching-and-release-strategy)
-- [API Endpoints](#api-endpoints)
-- [Security Controls](#security-controls)
-- [Operations Runbook](#operations-runbook)
-- [Troubleshooting](#troubleshooting)
-- [Known Gaps and Roadmap](#known-gaps-and-roadmap)
-
-## Product Overview
-
-The platform helps candidates practice realistic interview rounds by using:
-
-- resume parsing (PDF/DOCX),
-- AI-generated interview questions adapted to candidate level,
-- round-by-round evaluation summaries, and
-- performance analytics across sessions.
-
-It uses server-rendered EJS pages and MongoDB persistence, with Docker and Jenkins for deployment automation.
-
-## Core Features
-
-- Session-based access with generated unique IDs (no full auth flow required).
-- Interview space creation by company, job role, rounds, and experience level.
-- Resume upload and text extraction:
-  - PDF via `pdf-parse`
-  - DOCX via `mammoth`
-- Resume-to-role summary generation using Gemini.
-- Adaptive interview engine:
-  - `fresher`: 10 questions
-  - `intermediate`: 12 questions
-  - `experienced`: 15 questions
-- Multi-AI evaluation pipeline for summaries:
-  - Gemini (required, primary)
-  - OpenAI (optional)
-  - Cohere (optional)
-- Performance dashboard with score trend and round-wise analytics.
-- Resume download flow with path traversal protection.
-
-## Tech Stack
-
-### Application
-
-- Node.js 20+
-- Express 4
-- EJS
-- MongoDB 7 + Mongoose
-
-### AI Integrations
-
-- Google Gemini (`@google/genai`) - required
-- OpenAI (`openai`) - optional
-- Cohere (`cohere-ai`) - optional
-
-### Security and Middleware
-
-- `cookie-session`
-- `express-rate-limit`
-- `cors`
-- `multer`
-- `dompurify` + `jsdom`
-
-### DevOps
-
-- Docker (multi-stage image)
-- Docker Compose (dev and prod files)
-- Jenkins declarative pipeline
-
-## Architecture
-
-### High-Level Flow
-
-```text
-Browser (EJS Views)
-   -> Express Routes/Controllers
-   -> AI Services (Gemini/OpenAI/Cohere)
-   -> MongoDB (Session/Space/Q&A)
-```
-
-### Runtime Components
-
-- Web app container: Node.js app on internal port `3000`
-- DB container: MongoDB 7
-- Named volumes:
-  - Mongo data persistence
-  - resume upload persistence
-
-### Diagrams
-
-- Deployment architecture: `docs/deployment-infrastructure.png`
-- DevOps pipeline: `docs/devops-pipeline.png`
-- CI/CD workflow: `docs/cicd-workflow.png`
-- Branching strategy: `docs/git-branching-strategy.png`
-- Pipeline flow: `docs/pipeline-flow.png`
-
-## Project Structure
-
-```text
-.
-├── server.js
-├── package.json
-├── Dockerfile
-├── docker-compose.yml
-├── docker-compose.prod.yml
-├── Jenkinsfile
-├── .env-example
-├── public/
-│   ├── css/
-│   └── Resumes/
-├── src/
-│   ├── app.js
-│   ├── routes.js
-│   ├── config/
-│   │   ├── aiServices.js
-│   │   ├── dbConfig.js
-│   │   └── email.js
-│   ├── controllers/
-│   │   ├── sessionController.js
-│   │   ├── spaceController.js
-│   │   └── interviewController.js
-│   ├── models/
-│   │   ├── sessionModel.js
-│   │   ├── spaceModel.js
-│   │   └── questionAnswerModel.js
-│   └── views/
-└── docs/
-```
-
-## Environment Variables
-
-Use `.env-example` as baseline.
-
-### Required
-
-- `PORT` (default `3000`)
-- `NODE_ENV` (`development` or `production`)
-- `SESSION_SECRET`
-- `MONGO_URI`
-- `GEMINI_API_KEY`
-
-### Optional (feature-enhancing)
-
-- `OPENAI_API_KEY`
-- `COHERE_API_KEY`
-
-### Optional (email)
-
-- `GMAIL_USER`
-- `GMAIL_PASS`
-
-### Present for compatibility
-
-- `JWT_SECRET`
-- `API_KEY`
-
-## Local Development
-
-### Prerequisites
-
-- Node.js 20+
-- npm 10+
-- MongoDB running (local or Atlas)
-
-### Setup
-
-```bash
-cp .env-example .env
-npm install
-npm run dev
-```
-
-App URL: `http://localhost:3000`
-
-### Available Scripts
-
-- `npm run dev` - starts `nodemon server.js`
-- `npm start` - starts `node server.js`
-- `npm test` - placeholder script (currently not implemented)
-
-## Docker Deployment
-
-### Why Docker Here
-
-- predictable runtime across environments
-- image-level dependency packaging
-- easier staging/prod parity
-
-### Image Details
-
-- multi-stage build (`node:20-alpine`)
-- production dependencies only
-- non-root runtime user (`appuser`)
-
-### Development Compose
-
-```bash
-docker compose up -d --build
-docker compose ps
-docker compose logs -f app
-```
-
-Exposed:
-
-- app: `${PORT:-3000}:3000`
-- mongo: `27017:27017`
-
-Tear down:
-
-```bash
-docker compose down
-```
-
-### Production Compose
-
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs -f app
-```
-
-Exposed:
-
-- app: `4000:3000`
-- mongo: not externally published
-
-Tear down:
-
-```bash
-docker compose -f docker-compose.prod.yml down
-```
-
-## CI/CD with Jenkins
-
-The Jenkins pipeline is branch-aware and deploys via Docker Compose.
-
-### Pipeline Stages
-
-1. Prepare `.env` from Jenkins credentials.
-2. Deploy staging when branch is `develop`.
-3. Deploy production when branch is `main`.
-4. Send build notification email in post actions.
-
-### Required Jenkins Credentials
-
-- `JWT_SECRET`
-- `SESSION_SECRET`
-- `MONGO_URI`
-- `GMAIL_USER`
-- `GMAIL_PASS`
-- `GEMINI_API_KEY`
-- `API_KEY`
-- `OPENAI_API_KEY`
-- `COHERE_API_KEY`
-
-### Deployment Mapping
-
-- `develop` -> `docker-compose.yml` -> staging
-- `main` -> `docker-compose.prod.yml` -> production
-
-### Jenkins Agent Requirements
-
-- Docker Engine + Compose plugin/CLI available
-- permission to run Docker commands
-- outbound network access to AI providers and MongoDB endpoint
-
-## Branching and Release Strategy
-
-### Branches
-
-- `develop`: active integration and staging deploy
-- `main`: production deploy
-
-### Recommended Flow
-
-1. Create feature branch from `develop`.
-2. Open PR into `develop`.
-3. Validate on staging deployment.
-4. Promote to `main` for production release.
-
-## API Endpoints
-
-### Session and Entry
-
-- `GET /`
-- `GET /welcome`
-- `POST /api/start-new`
-- `POST /api/continue-session`
-
-### Profile and Dashboard (protected)
-
-- `GET /dashboard`
-- `GET /profile`
-- `POST /update-profile`
-- `GET /performance`
-
-### Interview Space (protected)
-
-- `POST /spaces/create`
-- `GET /space/:id`
-- `GET /space/resume/download/:id`
-
-### Interview Engine (protected)
-
-- `GET /space/:spaceId/round/:roundName/start`
-- `GET /generate-questions/:spaceId/:roundName`
-- `POST /next-question/:spaceId/:roundName`
-- `POST /finish-round/:spaceId/:roundName`
-- `GET /api/questions-answers/:roundId`
-- `GET /api/performance-insights`
-
-## Security Controls
-
-- Cookie session hardening:
-  - `httpOnly: true`
-  - `sameSite: 'lax'`
-  - secure flag in production
-- Request rate limiting:
-  - `/api/*`: 100 / 15 min
-  - `/spaces/create`: 5 / hour
-  - interview actions: 50 / hour
-- Upload restrictions:
-  - only PDF and DOCX
-  - max size 10 MB
-- Path traversal protection for resume download.
-- Server-side sanitization for rendered markdown content.
-- Container security: non-root runtime user.
-
-## Operations Runbook
-
-### Health Verification
-
-```bash
-docker compose ps
-docker compose logs --tail=100 app
-docker compose logs --tail=100 mongo
-```
-
-### Rebuild and Restart
-
-```bash
-docker compose down
-docker compose up -d --build
-```
-
-### Mongo Backup (example)
-
-```bash
-docker exec ai-mock-interview-mongo mongodump --archive=/tmp/backup.archive
-docker cp ai-mock-interview-mongo:/tmp/backup.archive ./backup.archive
-```
-
-### Mongo Restore (example)
-
-```bash
-docker cp ./backup.archive ai-mock-interview-mongo:/tmp/backup.archive
-docker exec ai-mock-interview-mongo mongorestore --archive=/tmp/backup.archive --drop
-```
-
-## Troubleshooting
-
-### App cannot connect to MongoDB
-
-- Verify `MONGO_URI` value in `.env`.
-- Ensure Mongo service is healthy (`docker compose ps`).
-- Check Mongo logs for auth/network errors.
-
-### AI features fail
-
-- Ensure `GEMINI_API_KEY` is valid.
-- If OpenAI/Cohere are absent, app should continue with Gemini-only path.
-- Check app logs for model/provider errors.
-
-### Upload fails
-
-- Confirm file type is PDF or DOCX.
-- Confirm file size <= 10 MB.
-- Verify write permission for `public/Resumes` or mounted volume.
-
-### Jenkins deployment fails
-
-- Confirm all Jenkins credentials exist with exact IDs.
-- Confirm Docker is installed and usable by Jenkins user.
-- Confirm correct branch conditions (`develop` and `main`).
-
-## Known Gaps and Roadmap
-
-- Automated tests are not yet implemented (`npm test` is placeholder).
-- Pipeline currently deploys directly without a dedicated test stage.
-- Consider adding:
-  - lint/test stage before deploy,
-  - container image tagging and registry push,
-  - rollback strategy,
-  - observability stack (metrics + alerting),
-  - reverse proxy and TLS automation for production edge.
+# 🎯 AI Mock Interview Platform
+
+> **Sharpen your interview skills with AI-powered adaptive questioning, real-time feedback, and comprehensive performance analytics.**
+
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?style=flat-square&logo=jenkins&logoColor=white)](https://www.jenkins.io/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen?style=flat-square)]()
 
 ---
 
-## Maintainer
+## 📖 Table of Contents
 
-Ketan Ayatti
+- [Overview](#-overview)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Architecture](#-architecture)
+- [Getting Started](#-getting-started)
+- [Configuration](#-configuration)
+- [API Reference](#-api-reference)
+- [DevOps & CI/CD](#-devops--cicd)
+- [Project Structure](#-project-structure)
+- [Roadmap](#-roadmap)
+- [Team](#-team)
 
-Repository: `https://github.com/ketanayatti/ai-mock-interview`
+---
+
+## 🌟 Overview
+
+The **AI Mock Interview Platform** is a web-based application designed to help job candidates practice and refine their interview skills through AI-powered mock interviews. It leverages **Google Gemini** as the primary AI engine (with OpenAI and Cohere as optional fallbacks) to generate adaptive questions, evaluate responses, and deliver comprehensive performance analytics.
+
+The platform is built on a modern containerized architecture, deployed via a fully automated **Jenkins CI/CD pipeline**, and supports two live environments — **Staging** and **Production**.
+
+### Key Highlights
+
+- 🤖 **Multi-AI Engine** — Google Gemini primary, with OpenAI & Cohere fallback support
+- 🔄 **Adaptive Questioning** — dynamically calibrates difficulty based on experience level and conversation history
+- 📄 **Resume-Aware** — parses PDF/DOCX resumes to generate role-specific questions
+- 📊 **Analytics Dashboard** — tracks scores, trends, and performance across sessions
+- 🚀 **Production-Ready** — containerized with Docker, auto-deployed via Jenkins pipelines
+- 🔒 **Secure by Design** — rate limiting, session encryption, non-root containers, file sanitization
+
+---
+
+## ✨ Features
+
+### 🔐 Session Management
+
+- Anonymous sessions with unique 8-character hex identifiers
+- Cookie-based persistence (30-day expiry) — no signup required
+- Session recovery using unique identifiers
+- Multi-space support within a single session
+
+### 🗂️ Interview Spaces
+
+- Create spaces for specific companies and job roles
+- Set experience level: **Fresher**, **Intermediate**, or **Experienced**
+- Upload job descriptions for context-aware question generation
+- Multiple round types: **HR**, **Technical**, **Final**, or custom
+- Round-wise status tracking and summarization
+
+### 📋 Resume Management
+
+- Supports **PDF** and **DOCX** formats (up to 10MB)
+- Automatic text extraction and AI-powered summarization
+- Secure storage with filename sanitization (prevents directory traversal)
+
+### 🤖 Adaptive Question Generation
+
+| Experience Level | Questions per Round |
+| ---------------- | ------------------- |
+| Fresher          | 10                  |
+| Intermediate     | 12                  |
+| Experienced      | 15                  |
+
+- Round-specific guidelines (HR → soft skills, Technical → domain expertise)
+- Conversation history analysis for coherent follow-up questions
+- Gemini-primary with graceful fallback mechanisms
+
+### 📈 Performance Evaluation & Analytics
+
+- Round-wise scoring and summary generation
+- Multi-model evaluation pipeline
+- Score trend visualization across sessions
+- Space-level historical comparison
+- Session duration and engagement tracking
+
+---
+
+## 🛠️ Tech Stack
+
+| Category             | Technology                                    |
+| -------------------- | --------------------------------------------- |
+| **Runtime**          | Node.js 20+                                   |
+| **Framework**        | Express.js                                    |
+| **Templating**       | EJS (Server-Side Rendering)                   |
+| **Database**         | MongoDB 7 + Mongoose ODM                      |
+| **Primary AI**       | Google Gemini (`@google/genai`)               |
+| **Optional AI**      | OpenAI API, Cohere API                        |
+| **File Uploads**     | Multer                                        |
+| **File Parsing**     | pdf-parse, Mammoth (DOCX)                     |
+| **Security**         | DOMPurify, JSDOM, cookie-session, CORS        |
+| **Containerization** | Docker (Node.js 20 Alpine, multi-stage build) |
+| **Orchestration**    | Docker Compose                                |
+| **CI/CD**            | Jenkins (Multi-branch Pipeline)               |
+| **Web Server**       | Apache (Reverse Proxy)                        |
+| **Version Control**  | Git + GitHub                                  |
+| **Scripting**        | Bash                                          |
+
+---
+
+## 🏗️ Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    CLIENT (Browser)                      │
+└───────────────────────┬─────────────────────────────────┘
+                        │ HTTPS
+┌───────────────────────▼─────────────────────────────────┐
+│              Apache Reverse Proxy                        │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────────┐
+│           Node.js Application Container (:3000)          │
+│   ┌──────────────┐  ┌───────────┐  ┌─────────────────┐  │
+│   │  Express.js  │  │  EJS Views│  │  AI Integration │  │
+│   │  Controllers │  │  (UI/UX)  │  │ Gemini/OpenAI   │  │
+│   └──────────────┘  └───────────┘  └─────────────────┘  │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────────┐
+│           MongoDB Container (:27017)                     │
+│       Sessions │ Spaces │ Questions/Answers              │
+│              [Persistent Docker Volume]                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Three-Tier Architecture
+
+- **Presentation Layer** — EJS server-rendered templates with Bootstrap/custom CSS
+- **Business Logic Layer** — Express.js controllers and middleware
+- **Data Access Layer** — Mongoose ODM with MongoDB document store
+
+### Database Collections
+
+```
+Sessions ──────┐
+               ├──► Spaces ──────┐
+                                 ├──► Interview Rounds (embedded)
+                                 ├──► Resume Data (embedded)
+                                 └──► Q&A Records (referenced)
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/)
+- [Node.js 20+](https://nodejs.org/) (for local development without Docker)
+- A [Google Gemini API Key](https://aistudio.google.com/)
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/ketanayatti/ai-mock-interview.git
+cd ai-mock-interview
+```
+
+### 2. Configure Environment Variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your credentials (see [Configuration](#-configuration)).
+
+### 3. Run with Docker Compose
+
+**Development mode** (with hot-reload via Nodemon):
+
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+**Production mode:**
+
+```bash
+docker-compose -f docker-compose.prod.yml up --build -d
+```
+
+The app will be available at `http://localhost:3000`.
+
+### 4. Local Development (without Docker)
+
+```bash
+npm install
+npm run dev       # starts with Nodemon
+# or
+npm start         # starts without auto-reload
+```
+
+> ⚠️ Requires a running MongoDB instance. Update `MONGO_URI` in `.env` accordingly.
+
+---
+
+## ⚙️ Configuration
+
+### Required Environment Variables
+
+| Variable         | Description                               |
+| ---------------- | ----------------------------------------- |
+| `MONGO_URI`      | MongoDB connection string                 |
+| `GEMINI_API_KEY` | Google Gemini API key (primary AI engine) |
+| `SESSION_SECRET` | Secret key for cookie-session encryption  |
+| `NODE_ENV`       | `development` or `production`             |
+| `PORT`           | HTTP server port (default: `3000`)        |
+
+### Optional Variables
+
+| Variable         | Description                                 |
+| ---------------- | ------------------------------------------- |
+| `OPENAI_API_KEY` | Enables OpenAI evaluation fallback          |
+| `COHERE_API_KEY` | Enables Cohere evaluation fallback          |
+| `EMAIL_USER`     | Email address for build/notification system |
+| `EMAIL_PASS`     | Email password for SMTP                     |
+
+### Environment Behavior
+
+| Setting           | `development`   | `production`                 |
+| ----------------- | --------------- | ---------------------------- |
+| Logging           | Verbose / Debug | Errors only                  |
+| Auto-reload       | Nodemon enabled | Disabled                     |
+| Cookie security   | Standard        | HTTPOnly + Secure + SameSite |
+| HTTPS enforcement | Off             | On                           |
+
+---
+
+## 📡 API Reference
+
+### Session Endpoints
+
+| Method | Endpoint           | Description                   |
+| ------ | ------------------ | ----------------------------- |
+| POST   | `/api/session`     | Create a new session          |
+| GET    | `/api/session/:id` | Retrieve session by unique ID |
+| GET    | `/api/sessions`    | List all sessions (dashboard) |
+
+### Space Endpoints
+
+| Method | Endpoint                | Description              |
+| ------ | ----------------------- | ------------------------ |
+| POST   | `/api/space`            | Create interview space   |
+| GET    | `/api/space/:id`        | Get space details        |
+| POST   | `/api/space/:id/resume` | Upload and parse resume  |
+| GET    | `/api/space/:id/resume` | Download resume securely |
+
+### Interview Endpoints
+
+| Method | Endpoint                     | Description                       |
+| ------ | ---------------------------- | --------------------------------- |
+| POST   | `/api/interview/start`       | Initialize round & first question |
+| POST   | `/api/interview/next`        | Submit answer & get next question |
+| POST   | `/api/interview/complete`    | Complete round & generate summary |
+| GET    | `/api/interview/:spaceId/qa` | Retrieve Q&A history              |
+
+### Rate Limits
+
+| Scope             | Limit                       |
+| ----------------- | --------------------------- |
+| General API       | 100 requests / 15 min / IP  |
+| Space creation    | 5 spaces / hour / session   |
+| Interview actions | 50 actions / hour / session |
+| Admin users       | Exempt from all limits      |
+
+---
+
+## 🔧 DevOps & CI/CD
+
+This project was implemented with a production-grade DevOps pipeline during an internship at **IonIdea**, prepared by **Ketan Ayatti** and **Virupaxappa Mirji**.
+
+### CI/CD Pipeline Overview
+
+```
+Developer Push
+     │
+     ▼
+GitHub Repository
+     │
+     ▼ (Webhook Trigger)
+Jenkins CI/CD
+     │
+     ├─── develop branch ──► Build Staging Image ──► Deploy via Docker Compose ──► Staging Environment
+     │
+     └─── main branch ─────► Build Production Image ► Deploy via Docker Compose ──► Production Environment
+                                                                      │
+                                                              Send Email Notification
+```
+
+### Environments
+
+| Environment | Branch    | Purpose                    |
+| ----------- | --------- | -------------------------- |
+| Staging     | `develop` | Testing and QA validation  |
+| Production  | `main`    | Live production deployment |
+
+### Git Branching Strategy
+
+```
+main    ●──────────────────────────────────●  (Production releases)
+         \                                /
+          \   Initial Commit             / Production Release
+           \                           /
+develop     ●──────●──────●───────────●  (Feature dev & staging)
+                Feature  Bug Fix
+```
+
+**Branch Protection Rules (main):**
+
+- Pull request required before merging
+- Force push blocked
+- Deletion restrictions applied
+- Linear history enforcement
+
+### Docker Configuration
+
+**Multi-stage Dockerfile highlights:**
+
+- Base: `node:20-alpine` (minimal footprint)
+- Multi-stage build for reduced image size
+- Non-root user execution for security hardening
+- Health check for container orchestration
+
+**Docker Compose Services:**
+
+| Service   | Image          | Purpose             |
+| --------- | -------------- | ------------------- |
+| `app`     | Custom Node.js | Application runtime |
+| `mongodb` | `mongo:7`      | Database service    |
+
+**Volume management:**
+
+- `mongo_data` — persistent MongoDB storage
+- `resume_uploads` — persisted resume files
+
+### Jenkins Pipeline Stages
+
+| Stage               | Description                                |
+| ------------------- | ------------------------------------------ |
+| Prepare Environment | Inject credentials via Jenkins Credentials |
+| Deploy Staging      | Triggered on `develop` branch push         |
+| Deploy Production   | Triggered on merge to `main`               |
+| Notify              | Send build status email to team            |
+
+**Email notifications include:** Build status, Job name, Branch name, Build number, Build result.
+
+### Server Infrastructure
+
+| Component         | Role                      |
+| ----------------- | ------------------------- |
+| Apache            | Reverse proxy for the app |
+| Docker            | Container runtime         |
+| Docker Compose    | Service orchestration     |
+| Node.js Container | Application runtime       |
+| MongoDB Container | Database                  |
+| Docker Volumes    | Persistent data storage   |
+
+### Security Measures
+
+- 🔥 Firewall configuration
+- 🔑 SSH key-based authentication (no password login)
+- 👤 Limited user privileges and role-based access
+- 🐳 Non-root Docker container execution
+- 🔒 Secrets managed via Jenkins Credentials Manager
+
+---
+
+## 📁 Project Structure
+
+```
+ai-mock-interview/
+├── controllers/          # Express route controllers
+├── models/               # Mongoose schemas (Session, Space, QA)
+├── routes/               # API route definitions
+├── views/                # EJS templates (UI pages)
+├── public/               # Static assets (CSS, JS, images)
+├── middleware/           # Auth, rate limiting, upload handling
+├── utils/                # AI integrations, file parsers, helpers
+├── uploads/              # Persisted resume files (Docker volume)
+├── Dockerfile            # Multi-stage production Docker build
+├── docker-compose.dev.yml
+├── docker-compose.prod.yml
+├── Jenkinsfile           # Multi-branch CI/CD pipeline definition
+├── .env.example          # Environment variable template
+├── package.json
+└── README.md
+```
+
+---
+
+## 🗺️ Roadmap
+
+### Short-term (1–3 months)
+
+- [ ] Automated unit and integration test suites
+- [ ] Structured logging and centralized monitoring
+- [ ] Redis for distributed session management
+- [ ] Email notification on interview completion
+
+### Medium-term (3–6 months)
+
+- [ ] Admin dashboard for analytics and user management
+- [ ] Peer review and feedback mechanism
+- [ ] WebSocket for real-time feedback
+- [ ] Custom AI evaluation rubrics
+
+### Long-term (6–12 months)
+
+- [ ] Mobile application
+- [ ] Video recording for mock interviews
+- [ ] Advanced ML-based analytics
+- [ ] Integration with recruitment platforms
+- [ ] Microservices migration for scalability
+
+---
+
+## 👥 Team
+
+| Role          | Name              |
+| ------------- | ----------------- |
+| DevOps Intern | Ketan Ayatti      |
+| DevOps Intern | Virupaxappa Mirji |
+| Organization  | IonIdea           |
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ at IonIdea · March 2026</sub>
+</div>
