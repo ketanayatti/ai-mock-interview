@@ -30,7 +30,7 @@
 
 ## 🚀 Business Impact & Technical Highlights
 
-This platform was architected to solve the bottleneck of accessible, high-quality interview practice by merging advanced generative AI with a robust DevOps pipeline. 
+This platform was architected to solve the bottleneck of accessible, high-quality interview practice by merging advanced generative AI with a robust DevOps pipeline.
 
 - 📈 **Optimized Latency & Cost:** Reduced AI response latency by 40% through parallelized API calls, while driving an **85% reduction in API operational costs** by intelligently orchestrating Google Gemini as the primary engine over OpenAI.
 - 🛡️ **Fault-Tolerant Architecture:** Engineered a multi-LLM automated fallback mechanism (Gemini → OpenAI → Cohere) ensuring **99.9% system uptime** and eradicating single points of failure.
@@ -42,7 +42,7 @@ This platform was architected to solve the bottleneck of accessible, high-qualit
 
 ## 📚 Documentation
 
-For an in-depth look into the project statement, competitor analysis, metric bounds, and architectural novelty, refer to the detailed [Project Documentation](PROJECT_DOCUMENTATION.md). This file details *why* the platform exists and maps out the comprehensive end-to-end framework and expected user impact.
+For an in-depth look into the project statement, competitor analysis, metric bounds, and architectural novelty, refer to the detailed [Project Documentation](PROJECT_DOCUMENTATION.md). This file details _why_ the platform exists and maps out the comprehensive end-to-end framework and expected user impact.
 
 Additionally, you can review our [Comprehensive Project Report](docs/PROJECT_REPORT.md) which includes detailed technical implementation notes, performance metrics, DevOps configurations, CI/CD pipeline results, and the combined full-stack impact.
 
