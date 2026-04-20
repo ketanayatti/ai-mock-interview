@@ -237,7 +237,7 @@ Be strict. A 7/10 is a high bar. Average candidates get 5-6.`;
     let geminiEval, openaiEval;
     
     try {
-      geminiEval = await callGemini(evalPrompt("Evaluator A (Senior Technical Lead)"));
+      geminiEval = await callGemini(evalPrompt("Evaluator A (Senior Technical Lead)"), "evaluation");
       console.log("Gemini evaluation complete.");
     } catch (e) {
       console.error("Gemini evaluation failed:", e);

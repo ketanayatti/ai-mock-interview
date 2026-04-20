@@ -269,7 +269,7 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
     
     // Step 1: Gemini analysis
     try {
-      const raw = await callGemini(analyticsPrompt("Performance Analyst A (Senior Career Coach)"));
+      const raw = await callGemini(analyticsPrompt("Performance Analyst A (Senior Career Coach)"), "evaluation");
       geminiResult = JSON.parse(raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
       console.log("Gemini performance analysis complete.");
     } catch (e) {

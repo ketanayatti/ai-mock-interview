@@ -2,7 +2,7 @@
 
 const Space = require("../models/spaceModel");
 const Session = require("../models/sessionModel");
-const { GoogleGenAI } = require("@google/genai");
+const { callGemini } = require("../config/aiServices");
 const path = require("path");
 const fs = require("fs");
 const pdfParse = require("pdf-parse");
@@ -10,13 +10,6 @@ const mammoth = require("mammoth");
 const marked = require("marked");
 const createDOMPurify = require("dompurify");
 const { JSDOM } = require("jsdom");
-
-// =======================
-// Gemini Initialization
-// =======================
-const genAI = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
 
 // =======================
 // Extract PDF Text
@@ -64,12 +57,8 @@ Be concise and clear.
   }
 
   try {
-    const result = await genAI.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-
-    return result.text;
+    const resultText = await callGemini(prompt);
+    return resultText || "Error generating summary";
   } catch (error) {
     console.error("Error summarizing content:", error);
     return "Error generating summary";
