@@ -35,6 +35,141 @@
     body.no-scroll {
       overflow: hidden;
     }
+
+    /* ===== Premium Modal Styles (Interview Summary) ===== */
+    #interviewSummaryModal {
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    #interviewSummaryModal .modal-window {
+      background: linear-gradient(145deg, #111113, #18181b);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      color: #F5F5F7;
+      border-radius: 20px;
+      overflow: hidden;
+      max-width: 900px;
+    }
+    #interviewSummaryModal .modal-close {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: #fff;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+    }
+    #interviewSummaryModal .modal-close:hover {
+      background: rgba(255, 255, 255, 0.2) !important;
+      transform: rotate(90deg);
+    }
+    #interviewSummaryModal h3 {
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-size: 22px;
+    }
+    
+    /* Modal Tabs Overlay */
+    #interviewSummaryModal .tabs {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0 8px;
+    }
+    #interviewSummaryModal .tab {
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    #interviewSummaryModal .tab:hover {
+      color: rgba(255,255,255,0.8);
+    }
+    #interviewSummaryModal .tab.active {
+      color: #0071E3;
+      border-bottom: 2px solid #0071E3;
+    }
+    
+    /* Summary Content text styling for dark mode */
+    #interviewSummaryModal #summaryContent {
+      color: #A1A1A6 !important;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    #interviewSummaryModal #summaryContent h1, 
+    #interviewSummaryModal #summaryContent h2, 
+    #interviewSummaryModal #summaryContent h3 {
+      color: #FFF;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    #interviewSummaryModal #summaryContent strong {
+      color: #E5E5EA;
+    }
+    
+    /* Glass Cards inside modal */
+    #interviewSummaryModal .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 20px;
+      transition: transform 0.2s;
+    }
+    #interviewSummaryModal .glass-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    #interviewSummaryModal .glass-card h4 {
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    #interviewSummaryModal ul#keyStrengths li span,
+    #interviewSummaryModal ul#areasToImprove li span {
+      color: #D2D2D7;
+    }
+    
+    /* Q&A section modern cards */
+    .qa-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 24px;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .qa-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateY(-2px);
+    }
+    .qa-badge {
+      display: inline-block;
+      background: rgba(0, 113, 227, 0.15);
+      color: #5AC8FA;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+      border: 1px solid rgba(0, 113, 227, 0.3);
+    }
+    .qa-question {
+      color: #FFF;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .qa-answer-box {
+      background: rgba(0, 0, 0, 0.4);
+      border-left: 3px solid #0071E3;
+      padding: 16px 20px;
+      border-radius: 0 12px 12px 0;
+      color: #D2D2D7;
+      font-size: 14.5px;
+      line-height: 1.7;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 
@@ -420,71 +555,74 @@
     <div id="interviewSummaryModal" class="modal-backdrop">
       <div class="modal-window modal-window-lg">
         <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-3">
-            <div class="feature-icon" style="margin-bottom: 0; width: 40px; height: 40px; font-size: 16px;">
-              <i class="fas fa-chart-bar"></i>
+        <div class="flex items-center justify-between px-6 pt-6 pb-4">
+          <div class="flex items-center gap-4">
+            <div style="background: rgba(0, 113, 227, 0.15); color: #0071E3; width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 1px solid rgba(0, 113, 227, 0.3);">
+              <i class="fas fa-brain"></i>
             </div>
-            <h3 class="mb-0">Interview Summary</h3>
+            <div>
+              <h3 class="mb-0" style="color: #fff;">AI Evaluation Report</h3>
+              <p style="color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 2px;">Comprehensive multi-agent analysis</p>
+            </div>
           </div>
-          <button class="modal-close btn-icon" style="background: rgba(0,0,0,0.05); border-radius: 50%;">
+          <button class="modal-close btn-icon" style="border-radius: 50%;">
             <i class="fas fa-times"></i>
           </button>
         </div>
 
         <!-- Modal Tabs -->
-        <div class="tabs" style="margin-bottom: 24px;">
+        <div class="tabs px-4 mb-4">
           <button class="tab active summary-tab" data-tab="summary">Overview</button>
-          <button class="tab summary-tab" data-tab="questions">Questions &amp; Answers</button>
+          <button class="tab summary-tab" data-tab="questions">Questions &amp; Analysis</button>
           <button class="tab summary-tab" data-tab="feedback">Detailed Feedback</button>
         </div>
 
         <!-- Tab: Overview -->
-        <div id="summaryTab" class="summary-section active">
-          <div id="summaryContent" class="modal-body-scroll text-sm leading-relaxed mb-6"
-            style="color: var(--text-secondary);">
+        <div id="summaryTab" class="summary-section active px-6">
+          <div id="summaryContent" class="modal-body-scroll">
+            <!-- Markdown content dynamically placed here -->
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            <div class="card-static p-4">
-              <h4 class="flex items-center gap-2 mb-3" style="font-size: 14px;">
-                <i class="fas fa-thumbs-up" style="color: var(--success-color);"></i> Key Strengths
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8 mb-6">
+            <div class="glass-card">
+              <h4 class="flex items-center gap-2" style="font-size: 15px;">
+                <i class="fas fa-shield-check" style="color: #34C759;"></i> Demonstrated Strengths
               </h4>
-              <ul id="keyStrengths" class="text-sm flex flex-col gap-2" style="color: var(--text-secondary);"></ul>
+              <ul id="keyStrengths" class="text-sm flex flex-col gap-3"></ul>
             </div>
-            <div class="card-static p-4">
-              <h4 class="flex items-center gap-2 mb-3" style="font-size: 14px;">
-                <i class="fas fa-lightbulb" style="color: var(--warning-color);"></i> Areas to Improve
+            <div class="glass-card">
+              <h4 class="flex items-center gap-2" style="font-size: 15px;">
+                <i class="fas fa-engine-warning" style="color: #FF9F0A;"></i> Target Areas to Improve
               </h4>
-              <ul id="areasToImprove" class="text-sm flex flex-col gap-2" style="color: var(--text-secondary);"></ul>
+              <ul id="areasToImprove" class="text-sm flex flex-col gap-3"></ul>
             </div>
           </div>
         </div>
 
         <!-- Tab: Questions -->
-        <div id="questionsTab" class="summary-section">
-          <div class="modal-body-scroll">
-            <div id="questionsContent" class="flex flex-col gap-4">
-              <p class="text-center py-8" style="color: var(--text-tertiary);">Loading questions and answers...</p>
+        <div id="questionsTab" class="summary-section px-6 mb-6">
+          <div class="modal-body-scroll" style="padding-right: 8px;">
+            <div id="questionsContent" class="flex flex-col gap-5">
+              <p class="text-center py-12" style="color: rgba(255,255,255,0.3);">Retrieving transcript timeline...</p>
             </div>
           </div>
         </div>
 
         <!-- Tab: Feedback -->
-        <div id="feedbackTab" class="summary-section">
+        <div id="feedbackTab" class="summary-section px-6 mb-6">
           <div class="modal-body-scroll">
             <div id="feedbackContent" class="flex flex-col gap-4">
-              <p class="text-center py-8" style="color: var(--text-tertiary);">Loading detailed feedback...</p>
+              <p class="text-center py-12" style="color: rgba(255,255,255,0.3);">Parsing advanced heuristics...</p>
             </div>
           </div>
         </div>
 
         <!-- Footer -->
-        <div class="flex justify-between items-center pt-4 border-t mt-6">
-          <button class="btn btn-accent btn-sm" id="practiceAgainBtn">
-            <i class="fas fa-redo mr-1"></i> Practice Again
+        <div class="flex justify-between items-center px-6 py-4" style="background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.06);">
+          <button class="btn btn-sm" id="practiceAgainBtn" style="background: #0071E3; color: #fff; border: none; font-weight: 500; box-shadow: 0 4px 14px rgba(0, 113, 227, 0.4);">
+            <i class="fas fa-redo-alt mr-2" style="font-size: 12px;"></i> Retake Round
           </button>
-          <button class="modal-close btn btn-secondary btn-sm">Close</button>
+          <button class="modal-close btn btn-sm" style="background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2);">Close Report</button>
         </div>
       </div>
     </div>
@@ -656,13 +794,15 @@ const completedSummaries = (space.interviewRounds || [])
           questionsContent.innerHTML = '';
           data.forEach((item, index) => {
             const div = document.createElement('div');
-            div.className = 'card-static p-4';
+            div.className = 'qa-card';
             div.innerHTML = `
-            <p class="font-bold mb-2">Q${index + 1}: ${item.question}</p>
-            <div class="p-3 bg-gray-50 rounded text-sm text-secondary">
-               ${item.answer || '<em>No answer provided</em>'}
-            </div>
-          `;
+              <div class="qa-badge">Prompt ${index + 1}</div>
+              <p class="qa-question">${item.question}</p>
+              <div class="qa-answer-box">
+                 <i class="fas fa-quote-left mr-2" style="opacity: 0.3;"></i>
+                 ${item.answer || '<em>Candidate did not provide a recorded response to this prompt.</em>'}
+              </div>
+            `;
             questionsContent.appendChild(div);
           });
         }
