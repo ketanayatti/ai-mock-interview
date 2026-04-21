@@ -50,16 +50,20 @@ pipeline {
 
         stage('Lint') {
             steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    sh 'npm run lint || true'
-                }
+                sh 'npm run lint'
             }
         }
 
         stage('Test') {
             steps {
+                sh 'npm test'
+            }
+        }
+
+        stage('Security Audit') {
+            steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    sh 'npm test || true'
+                    sh 'npm audit --audit-level=moderate'
                 }
             }
         }
@@ -92,16 +96,12 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                     sh '''
-                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
-
-                    docker pull ${REGISTRY}:latest
-
-                    docker stop ${GREEN} 2>/dev/null || true
-                    docker rm ${GREEN} 2>/dev/null || true
-
-                    docker run -d -p ${IDLE_PORT}:${PORT} --name ${GREEN} ${REGISTRY}:latest
-
-                    EOF
+                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+docker pull ${REGISTRY}:latest
+docker stop ${GREEN} 2>/dev/null || true
+docker rm ${GREEN} 2>/dev/null || true
+docker run -d -p ${IDLE_PORT}:${PORT} --name ${GREEN} ${REGISTRY}:latest
+EOF
                     '''
                 }
             }
@@ -112,15 +112,13 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                     sh '''
-                    ssh -i $KEY $USER@${EC2_IP} << EOF
-
-                    for i in {1..5}; do
-                        curl -f http://localhost:${IDLE_PORT}/health && exit 0
-                        sleep 3
-                    done
-
-                    exit 1
-                    EOF
+                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+for i in {1..5}; do
+  curl -f http://localhost:${IDLE_PORT}/health && exit 0
+  sleep 3
+done
+exit 1
+EOF
                     '''
                 }
             }
@@ -131,20 +129,13 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                     sh '''
-                    ssh -i $KEY $USER@${EC2_IP} << EOF
-
-                    # Switch nginx
-                    sudo sed -i 's/${ACTIVE_PORT}/${IDLE_PORT}/g' /etc/nginx/sites-available/default
-                    sudo systemctl reload nginx
-
-                    # Remove old container
-                    docker stop ${BLUE} 2>/dev/null || true
-                    docker rm ${BLUE} 2>/dev/null || true
-
-                    # Rename green → blue
-                    docker rename ${GREEN} ${BLUE}
-
-                    EOF
+                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+sudo sed -i 's/${ACTIVE_PORT}/${IDLE_PORT}/g' /etc/nginx/sites-available/default
+sudo systemctl reload nginx
+docker stop ${BLUE} 2>/dev/null || true
+docker rm ${BLUE} 2>/dev/null || true
+docker rename ${GREEN} ${BLUE}
+EOF
                     '''
                 }
             }
@@ -163,10 +154,10 @@ pipeline {
                 if (env.BRANCH_NAME == 'main') {
                     withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                         sh '''
-                        ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
-                        echo "Rollback triggered"
-                        sudo systemctl reload nginx
-                        EOF
+                        ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+echo "Rollback triggered"
+sudo systemctl reload nginx
+EOF
                         '''
                     }
                 }
