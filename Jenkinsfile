@@ -1,7 +1,7 @@
 pipeline {
     agent {
-        docker {
-            image 'node:18'
+        dockerfile {
+            filename 'Dockerfile.jenkins'
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -31,8 +31,13 @@ pipeline {
         stage('Verify Environment') {
             steps {
                 sh '''
+                echo "Node version:"
                 node -v
+
+                echo "NPM version:"
                 npm -v
+
+                echo "Docker version:"
                 docker -v
                 '''
             }
@@ -116,16 +121,22 @@ pipeline {
                     sh '''
                     ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${EC2_IP} << EOF
 
+                    echo "Pulling latest image..."
                     docker pull ${REGISTRY}:latest
 
+                    echo "Stopping old container..."
                     docker stop ${CONTAINER_NAME} || true
                     docker rm ${CONTAINER_NAME} || true
 
+                    echo "Running new container..."
                     docker run -d \
                         -p ${PORT}:${PORT} \
                         --name ${CONTAINER_NAME} \
                         --restart always \
                         ${REGISTRY}:latest
+
+                    echo "Cleaning unused images..."
+                    docker image prune -f
 
                     EOF
                     '''
@@ -147,13 +158,16 @@ pipeline {
                     sh '''
                     ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${EC2_IP} << EOF
 
+                    echo "Waiting for app to start..."
                     sleep 5
 
                     for i in {1..5}; do
+                        echo "Health check attempt $i..."
                         curl -f http://localhost:${PORT}/health && exit 0
                         sleep 3
                     done
 
+                    echo "Health check failed!"
                     exit 1
 
                     EOF
@@ -169,6 +183,9 @@ pipeline {
         }
         failure {
             echo "CI/CD FAILED: ${BRANCH_NAME}"
+        }
+        always {
+            cleanWs()
         }
     }
 }
