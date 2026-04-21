@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "ai-mock-interview"
+        APP_NAME    = "ai-mock-interview"
         DOCKER_USER = "kethanayatti"
-        REGISTRY = "docker.io/${DOCKER_USER}/${APP_NAME}"
+        REGISTRY    = "docker.io/${DOCKER_USER}/${APP_NAME}"
 
         EC2_IP = "13.220.61.216"
         PORT   = "3000"
@@ -29,12 +29,9 @@ pipeline {
         stage('Verify Environment') {
             steps {
                 sh '''
-                    echo "Node Version:"
-                    node -v
-                    echo "NPM Version:"
-                    npm -v
-                    echo "Docker Version:"
-                    docker --version
+                    echo "Node Version:"   && node -v
+                    echo "NPM Version:"    && npm -v
+                    echo "Docker Version:" && docker --version
                 '''
             }
         }
@@ -65,12 +62,11 @@ pipeline {
             }
         }
 
-    
         stage('Build Docker Image') {
             steps {
+
                 sh """
-                    docker build -t ${REGISTRY}:latest .
-                    docker build -t ${REGISTRY}:${BUILD_NUMBER} .
+                    docker build -t ${REGISTRY}:latest -t ${REGISTRY}:${BUILD_NUMBER} .
                 """
             }
         }
@@ -80,15 +76,18 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'docker-credentials',
-                    usernameVariable: 'DOCKER_USER_LOGIN',
-                    passwordVariable: 'PASS'
+                    usernameVariable: 'DOCKER_LOGIN_USER',
+                    passwordVariable: 'DOCKER_LOGIN_PASS'
                 )]) {
-                    sh """
-                        echo \$PASS | docker login -u \$DOCKER_USER_LOGIN --password-stdin
+        
+                    sh '''
+                        echo $DOCKER_LOGIN_PASS | docker login -u $DOCKER_LOGIN_USER --password-stdin
+                    ''' + "\n" + """
                         docker push ${REGISTRY}:latest
                         docker push ${REGISTRY}:${BUILD_NUMBER}
+                    """ + '''
                         docker logout
-                    """
+                    '''
                 }
             }
         }
@@ -97,41 +96,72 @@ pipeline {
             when { branch 'main' }
             steps {
                 withCredentials([
-                    sshUserPrivateKey(credentialsId: 'ec2-ssh-key',    keyFileVariable: 'KEY', usernameVariable: 'SSH_USER'),
-                    string(credentialsId: 'node-env',          variable: 'NODE_ENV'),
-                    string(credentialsId: 'jwt-secret',        variable: 'JWT_SECRET'),
-                    string(credentialsId: 'session-secret',    variable: 'SESSION_SECRET'),
-                    string(credentialsId: 'mongo-uri',         variable: 'MONGO_URI'),
-                    string(credentialsId: 'gmail-user',        variable: 'GMAIL_USER'),
-                    string(credentialsId: 'gmail-pass',        variable: 'GMAIL_PASS'),
-                    string(credentialsId: 'gemini-api-key',    variable: 'GEMINI_API_KEY'),
-                    string(credentialsId: 'openai-api-key',    variable: 'OPENAI_API_KEY'),
-                    string(credentialsId: 'cohere-api-key',    variable: 'COHERE_API_KEY'),
-                    string(credentialsId: 'cohere-api-key-2',  variable: 'COHERE_API_KEY_2')
+                    sshUserPrivateKey(credentialsId: 'ec2-ssh-key',   keyFileVariable: 'KEY', usernameVariable: 'SSH_USER'),
+                    string(credentialsId: 'node-env',         variable: 'NODE_ENV'),
+                    string(credentialsId: 'jwt-secret',       variable: 'JWT_SECRET'),
+                    string(credentialsId: 'session-secret',   variable: 'SESSION_SECRET'),
+                    string(credentialsId: 'mongo-uri',        variable: 'MONGO_URI'),
+                    string(credentialsId: 'gmail-user',       variable: 'GMAIL_USER'),
+                    string(credentialsId: 'gmail-pass',       variable: 'GMAIL_PASS'),
+                    string(credentialsId: 'gemini-api-key',   variable: 'GEMINI_API_KEY'),
+                    string(credentialsId: 'openai-api-key',   variable: 'OPENAI_API_KEY'),
+                    string(credentialsId: 'cohere-api-key',   variable: 'COHERE_API_KEY'),
+                    string(credentialsId: 'cohere-api-key-2', variable: 'COHERE_API_KEY_2')
                 ]) {
-                    sh """
-                        ssh -i \$KEY -o StrictHostKeyChecking=no \$SSH_USER@${EC2_IP} \
-                            'ACTIVE_PORT=\$(docker inspect --format="{{ (index (index .HostConfig.PortBindings \\"3000/tcp\\") 0).HostPort }}" ${BLUE} 2>/dev/null || echo "3000") && \
-                             IDLE_PORT=\$([ "\$ACTIVE_PORT" = "3000" ] && echo "3001" || echo "3000") && \
-                             echo \$ACTIVE_PORT > /tmp/active_port && \
-                             echo \$IDLE_PORT   > /tmp/idle_port   && \
-                             docker pull ${REGISTRY}:latest         && \
-                             docker stop  ${GREEN} 2>/dev/null || true && \
-                             docker rm    ${GREEN} 2>/dev/null || true && \
-                             docker run -d -p \$IDLE_PORT:${PORT} --name ${GREEN} \
-                               -e PORT=${PORT} \
-                               -e NODE_ENV=${NODE_ENV} \
-                               -e JWT_SECRET=${JWT_SECRET} \
-                               -e SESSION_SECRET=${SESSION_SECRET} \
-                               -e MONGO_URI=${MONGO_URI} \
-                               -e GMAIL_USER=${GMAIL_USER} \
-                               -e GMAIL_PASS=${GMAIL_PASS} \
-                               -e GEMINI_API_KEY=${GEMINI_API_KEY} \
-                               -e OPENAI_API_KEY=${OPENAI_API_KEY} \
-                               -e COHERE_API_KEY=${COHERE_API_KEY} \
-                               -e COHERE_API_KEY_2=${COHERE_API_KEY_2} \
-                               ${REGISTRY}:latest'
-                    """
+                    script {
+
+                        writeFile file: 'app.env', text: """\
+PORT=${PORT}
+NODE_ENV=${NODE_ENV}
+JWT_SECRET=${JWT_SECRET}
+SESSION_SECRET=${SESSION_SECRET}
+MONGO_URI=${MONGO_URI}
+GMAIL_USER=${GMAIL_USER}
+GMAIL_PASS=${GMAIL_PASS}
+GEMINI_API_KEY=${GEMINI_API_KEY}
+OPENAI_API_KEY=${OPENAI_API_KEY}
+COHERE_API_KEY=${COHERE_API_KEY}
+COHERE_API_KEY_2=${COHERE_API_KEY_2}
+"""
+                    }
+
+                    sh '''
+                        scp -i $KEY -o StrictHostKeyChecking=no \
+                            app.env $SSH_USER@''' + EC2_IP + ''':/tmp/app.env
+                    '''
+
+                    sh '''
+                        ssh -i $KEY -o StrictHostKeyChecking=no $SSH_USER@''' + EC2_IP + ''' << 'ENDSSH'
+set -e
+
+# Detect the port the current BLUE container is bound to.
+# Falls back to 3000 if BLUE doesn't exist yet (first deploy).
+ACTIVE_PORT=$(docker inspect \
+  --format='{{ (index (index .HostConfig.PortBindings "3000/tcp") 0).HostPort }}' \
+  app-blue 2>/dev/null || echo "3000")
+IDLE_PORT=$([ "$ACTIVE_PORT" = "3000" ] && echo "3001" || echo "3000")
+
+echo "$ACTIVE_PORT" > /tmp/active_port
+echo "$IDLE_PORT"   > /tmp/idle_port
+echo "BLUE is on $ACTIVE_PORT — deploying GREEN to $IDLE_PORT"
+
+docker pull ''' + REGISTRY + ''':latest
+
+docker stop  app-green 2>/dev/null || true
+docker rm    app-green 2>/dev/null || true
+
+docker run -d \
+  -p "$IDLE_PORT":''' + PORT + ''' \
+  --name app-green \
+  --env-file /tmp/app.env \
+  ''' + REGISTRY + ''':latest
+
+# Remove env file from EC2 immediately — no secrets left on disk
+rm -f /tmp/app.env
+
+echo "GREEN started on port $IDLE_PORT"
+ENDSSH
+                    '''
                 }
             }
         }
@@ -144,16 +174,22 @@ pipeline {
                     keyFileVariable: 'KEY',
                     usernameVariable: 'SSH_USER'
                 )]) {
-                    sh """
-                        ssh -i \$KEY -o StrictHostKeyChecking=no \$SSH_USER@${EC2_IP} \
-                            'IDLE_PORT=\$(cat /tmp/idle_port) && \
-                             for i in \$(seq 1 10); do \
-                               curl -sf http://localhost:\$IDLE_PORT/health && exit 0; \
-                               echo "Attempt \$i failed, retrying in 5s..."; \
-                               sleep 5; \
-                             done; \
-                             echo "Health check failed after 10 attempts"; exit 1'
-                    """
+                    sh '''
+                        ssh -i $KEY -o StrictHostKeyChecking=no $SSH_USER@''' + EC2_IP + ''' << 'ENDSSH'
+IDLE_PORT=$(cat /tmp/idle_port)
+echo "Health-checking GREEN on port $IDLE_PORT ..."
+for i in $(seq 1 12); do
+    if curl -sf http://localhost:$IDLE_PORT/health; then
+        echo "Health check passed on attempt $i"
+        exit 0
+    fi
+    echo "Attempt $i/12 failed — waiting 5s..."
+    sleep 5
+done
+echo "ERROR: health check failed after 12 attempts (60s)"
+exit 1
+ENDSSH
+                    '''
                 }
             }
         }
@@ -166,56 +202,73 @@ pipeline {
                     keyFileVariable: 'KEY',
                     usernameVariable: 'SSH_USER'
                 )]) {
-                    sh """
-                        ssh -i \$KEY -o StrictHostKeyChecking=no \$SSH_USER@${EC2_IP} \
-                            'ACTIVE_PORT=\$(cat /tmp/active_port) && \
-                             IDLE_PORT=\$(cat /tmp/idle_port)     && \
-                             sudo sed -i "s/\$ACTIVE_PORT/\$IDLE_PORT/g" /etc/nginx/sites-available/default && \
-                             sudo nginx -t                        && \
-                             sudo systemctl reload nginx          && \
-                             docker stop  ${BLUE} 2>/dev/null || true && \
-                             docker rm    ${BLUE} 2>/dev/null || true && \
-                             docker rename ${GREEN} ${BLUE}       && \
-                             echo "Traffic switched: \$ACTIVE_PORT -> \$IDLE_PORT"'
-                    """
+                    sh '''
+                        ssh -i $KEY -o StrictHostKeyChecking=no $SSH_USER@''' + EC2_IP + ''' << 'ENDSSH'
+set -e
+ACTIVE_PORT=$(cat /tmp/active_port)
+IDLE_PORT=$(cat /tmp/idle_port)
+
+echo "Switching nginx proxy: $ACTIVE_PORT -> $IDLE_PORT"
+sudo sed -i "s/$ACTIVE_PORT/$IDLE_PORT/g" /etc/nginx/sites-available/default
+sudo nginx -t
+sudo systemctl reload nginx
+
+docker stop  app-blue 2>/dev/null || true
+docker rm    app-blue 2>/dev/null || true
+docker rename app-green app-blue
+
+echo "Done — live traffic now on port $IDLE_PORT (container: app-blue)"
+ENDSSH
+                    '''
                 }
             }
         }
     }
-    post {
 
+    post {
         success {
             echo "✅ SUCCESS: ${BRANCH_NAME} build #${BUILD_NUMBER} deployed"
         }
 
         failure {
             echo "❌ FAILED: ${BRANCH_NAME} build #${BUILD_NUMBER}"
-
             script {
+                sh 'rm -f app.env || true'
+
                 if (env.BRANCH_NAME == 'main') {
                     withCredentials([sshUserPrivateKey(
                         credentialsId: 'ec2-ssh-key',
                         keyFileVariable: 'KEY',
                         usernameVariable: 'SSH_USER'
                     )]) {
-                        sh """
-                            ssh -i \$KEY -o StrictHostKeyChecking=no \$SSH_USER@${EC2_IP} \
-                                'echo "=== Rollback triggered ===" && \
-                                 ACTIVE_PORT=\$(cat /tmp/active_port 2>/dev/null || echo "3000") && \
-                                 IDLE_PORT=\$(cat /tmp/idle_port 2>/dev/null || echo "3001")     && \
-                                 sudo sed -i "s/\$IDLE_PORT/\$ACTIVE_PORT/g" /etc/nginx/sites-available/default && \
-                                 sudo nginx -t                        && \
-                                 sudo systemctl reload nginx          && \
-                                 docker stop ${GREEN} 2>/dev/null || true && \
-                                 docker rm   ${GREEN} 2>/dev/null || true && \
-                                 echo "Rolled back to port \$ACTIVE_PORT — BLUE container is live again"'
-                        """
+                        sh '''
+                            ssh -i $KEY -o StrictHostKeyChecking=no $SSH_USER@''' + EC2_IP + ''' << 'ENDSSH'
+echo "=== Rollback triggered ==="
+
+rm -f /tmp/app.env
+
+ACTIVE_PORT=$(cat /tmp/active_port 2>/dev/null || echo "3000")
+IDLE_PORT=$(cat /tmp/idle_port 2>/dev/null || echo "3001")
+
+# Revert nginx to the previously live port
+sudo sed -i "s/$IDLE_PORT/$ACTIVE_PORT/g" /etc/nginx/sites-available/default
+sudo nginx -t
+sudo systemctl reload nginx
+
+# Remove the broken GREEN container
+docker stop app-green 2>/dev/null || true
+docker rm   app-green 2>/dev/null || true
+
+echo "Rollback complete — traffic restored to port $ACTIVE_PORT (app-blue is live)"
+ENDSSH
+                        '''
                     }
                 }
             }
         }
 
         always {
+            sh 'rm -f app.env || true'
             cleanWs()
         }
     }
