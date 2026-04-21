@@ -13,13 +13,11 @@ pipeline {
     stages {
         stage('Verify Environment') {
             steps {
-                script {
-                    sh '''
-                        node --version
-                        npm --version
-                        echo "✓ Node.js environment verified"
-                    '''
-                }
+                sh '''
+                    node --version
+                    npm --version
+                    echo "✓ Node.js environment verified"
+                '''
             }
         }
         
