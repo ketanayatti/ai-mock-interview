@@ -94,13 +94,37 @@ pipeline {
         stage('Deploy GREEN') {
             when { branch 'main' }
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER'),
+                    string(credentialsId: 'node-env', variable: 'NODE_ENV'),
+                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
+                    string(credentialsId: 'session-secret', variable: 'SESSION_SECRET'),
+                    string(credentialsId: 'mongo-uri', variable: 'MONGO_URI'),
+                    string(credentialsId: 'gmail-user', variable: 'GMAIL_USER'),
+                    string(credentialsId: 'gmail-pass', variable: 'GMAIL_PASS'),
+                    string(credentialsId: 'gemini-api-key', variable: 'GEMINI_API_KEY'),
+                    string(credentialsId: 'openai-api-key', variable: 'OPENAI_API_KEY'),
+                    string(credentialsId: 'cohere-api-key', variable: 'COHERE_API_KEY'),
+                    string(credentialsId: 'cohere-api-key-2', variable: 'COHERE_API_KEY_2')
+                ]) {
                     sh '''
                     ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
 docker pull ${REGISTRY}:latest
 docker stop ${GREEN} 2>/dev/null || true
 docker rm ${GREEN} 2>/dev/null || true
-docker run -d -p ${IDLE_PORT}:${PORT} --name ${GREEN} ${REGISTRY}:latest
+docker run -d -p ${IDLE_PORT}:${PORT} --name ${GREEN} \
+  -e PORT=${PORT} \
+  -e NODE_ENV=${NODE_ENV} \
+  -e JWT_SECRET=${JWT_SECRET} \
+  -e SESSION_SECRET=${SESSION_SECRET} \
+  -e MONGO_URI=${MONGO_URI} \
+  -e GMAIL_USER=${GMAIL_USER} \
+  -e GMAIL_PASS=${GMAIL_PASS} \
+  -e GEMINI_API_KEY=${GEMINI_API_KEY} \
+  -e OPENAI_API_KEY=${OPENAI_API_KEY} \
+  -e COHERE_API_KEY=${COHERE_API_KEY} \
+  -e COHERE_API_KEY_2=${COHERE_API_KEY_2} \
+  ${REGISTRY}:latest
 EOF
                     '''
                 }
