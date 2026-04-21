@@ -11,6 +11,20 @@ const routes = require('./routes');
 
 const app = express();
 
+// App readiness state for Blue-Green deployment
+let appReady = false;
+
+app.setReady = (ready) => {
+  appReady = ready;
+  if (ready) {
+    console.log('[HEALTH] App marked as ready');
+  } else {
+    console.log('[HEALTH] App marked as not ready');
+  }
+};
+
+app.getReady = () => appReady;
+
 // Enable CORS (applied BEFORE routes)
 app.use(cors());
 
@@ -72,6 +86,22 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/', apiLimiter);
 app.use('/spaces/create', createSpaceLimiter);
 app.use(['/generate-questions', '/next-question', '/finish-round'], interviewLimiter);
+
+// Health check endpoint (readiness probe for deployment)
+app.get('/health', (req, res) => {
+  if (appReady) {
+    res.status(200).json({ 
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  } else {
+    res.status(503).json({ 
+      status: 'starting',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Routes
 app.use('/', routes);
