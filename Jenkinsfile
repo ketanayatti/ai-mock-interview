@@ -96,7 +96,7 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                     sh '''
-                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
 docker pull ${REGISTRY}:latest
 docker stop ${GREEN} 2>/dev/null || true
 docker rm ${GREEN} 2>/dev/null || true
@@ -112,7 +112,7 @@ EOF
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                     sh '''
-                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
 for i in {1..5}; do
   curl -f http://localhost:${IDLE_PORT}/health && exit 0
   sleep 3
@@ -129,7 +129,7 @@ EOF
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                     sh '''
-                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+                    ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
 sudo sed -i 's/${ACTIVE_PORT}/${IDLE_PORT}/g' /etc/nginx/sites-available/default
 sudo systemctl reload nginx
 docker stop ${BLUE} 2>/dev/null || true
@@ -154,7 +154,7 @@ EOF
                 if (env.BRANCH_NAME == 'main') {
                     withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
                         sh '''
-                        ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << 'EOF'
+                        ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
 echo "Rollback triggered"
 sudo systemctl reload nginx
 EOF
