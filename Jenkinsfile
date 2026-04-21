@@ -1,6 +1,11 @@
 pipeline {
     agent any
     
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    
     environment {
         IMAGE_NAME = 'ai-mock-interview'
         DOCKER_USER = 'kethanayatti'
@@ -8,18 +13,19 @@ pipeline {
         CONTAINER_NAME = 'app-blue'
         PORT = '3000'
         REGISTRY_URL = "docker.io/${DOCKER_USER}/${IMAGE_NAME}"
+        PATH = "/home/ubuntu/.nvm/versions/node/v24.15.0/bin:${PATH}"
     }
     
     stages {
         stage('Verify Environment') {
             steps {
-                script {
-                    sh '''
-                        node --version
-                        npm --version
-                        echo "✓ Node.js environment verified"
-                    '''
-                }
+                sh '''
+                    echo "Node version:"
+                    node --version
+                    echo "NPM version:"
+                    npm --version
+                    echo "✓ Node.js environment verified"
+                '''
             }
         }
         
