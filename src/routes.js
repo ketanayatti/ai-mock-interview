@@ -26,9 +26,7 @@ if (!fs.existsSync(resumeFolderPath)) {
 // Sanitize filename to prevent path traversal
 const sanitizeFilename = (filename) => {
   // Remove path separators and null bytes
-  return filename
-    .replace(/[/\\:\0]/g, "_")
-    .replace(/\.\./g, "_");
+  return filename.replace(/[/\\:\0]/g, "_").replace(/\.\./g, "_");
 };
 
 // Multer setup for file uploads
@@ -59,11 +57,6 @@ const upload = multer({
       cb(new Error("Only PDF and DOCX files are allowed."), false);
     }
   },
-});
-
-// Health check endpoint (for CI/CD deployment verification)
-router.get("/health", (req, res) => {
-  res.status(200).json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
 // Welcome page
@@ -174,21 +167,25 @@ router.get("/space/:id", protect, spaceController.getSpaceDetails);
 
 // Interview routes
 // Interview routes
-router.get("/space/:spaceId/round/:roundName/start", protect, async (req, res) => {
-  try {
-    const { spaceId, roundName } = req.params;
-    const space = await Space.findById(spaceId);
-    
-    if (!space) {
-      return res.status(404).json({ error: "Space not found" });
-    }
+router.get(
+  "/space/:spaceId/round/:roundName/start",
+  protect,
+  async (req, res) => {
+    try {
+      const { spaceId, roundName } = req.params;
+      const space = await Space.findById(spaceId);
 
-    res.render("student/interview-screen", { spaceId, roundName, space });
-  } catch (error) {
-    console.error("Error loading interview screen:", error);
-    res.status(500).send("Server Error");
-  }
-});
+      if (!space) {
+        return res.status(404).json({ error: "Space not found" });
+      }
+
+      res.render("student/interview-screen", { spaceId, roundName, space });
+    } catch (error) {
+      console.error("Error loading interview screen:", error);
+      res.status(500).send("Server Error");
+    }
+  },
+);
 
 router.get(
   "/generate-questions/:spaceId/:roundName",
@@ -209,17 +206,21 @@ router.post(
 // API: Generate AI Performance Insights via 3-AI Pipeline
 router.get("/api/performance-insights", protect, async (req, res) => {
   try {
-    const { callGemini, callOpenAI, callCohere } = require("./config/aiServices");
+    const {
+      callGemini,
+      callOpenAI,
+      callCohere,
+    } = require("./config/aiServices");
     const QuestionAnswer = require("./models/questionAnswerModel");
-    
+
     const spaces = await Space.find({ studentId: req.session.uniqueId });
-    
+
     // Collect all completed round summaries and Q&A data
     const completedRounds = [];
-    spaces.forEach(space => {
+    spaces.forEach((space) => {
       if (space.interviewRounds) {
-        space.interviewRounds.forEach(round => {
-          if (round.status === 'completed' && round.summary) {
+        space.interviewRounds.forEach((round) => {
+          if (round.status === "completed" && round.summary) {
             completedRounds.push({
               company: space.companyName,
               position: space.jobPosition,
@@ -231,21 +232,27 @@ router.get("/api/performance-insights", protect, async (req, res) => {
         });
       }
     });
-    
+
     if (completedRounds.length === 0) {
       return res.json({
         success: true,
         insights: null,
-        message: "No completed interviews to analyze yet. Complete at least one interview round to receive AI-powered performance insights."
+        message:
+          "No completed interviews to analyze yet. Complete at least one interview round to receive AI-powered performance insights.",
       });
     }
-    
+
     // Build the comprehensive analytics prompt
-    const summariesText = completedRounds.map((r, i) => 
-      `--- Interview ${i + 1}: ${r.company} | ${r.position} | ${r.round} Round (${r.level}) ---\n${r.summary}`
-    ).join("\n\n");
-    
-    const analyticsPrompt = (aiRole) => `You are ${aiRole}, a career coaching AI that provides data-driven performance analytics.
+    const summariesText = completedRounds
+      .map(
+        (r, i) =>
+          `--- Interview ${i + 1}: ${r.company} | ${r.position} | ${r.round} Round (${r.level}) ---\n${r.summary}`,
+      )
+      .join("\n\n");
+
+    const analyticsPrompt = (
+      aiRole,
+    ) => `You are ${aiRole}, a career coaching AI that provides data-driven performance analytics.
 
 TASK: Analyze the following ${completedRounds.length} completed interview evaluation(s) and produce a comprehensive performance report.
 
@@ -269,32 +276,47 @@ Provide your analysis in the following STRICT JSON format (no markdown, no code 
 IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, no explanations outside the JSON.`;
 
     console.log("Generating AI Performance Insights...");
-    
+
     let geminiResult, openaiResult;
-    
+
     // Step 1: Gemini analysis
     try {
-      const raw = await callGemini(analyticsPrompt("Performance Analyst A (Senior Career Coach)"), "evaluation");
-      geminiResult = JSON.parse(raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+      const raw = await callGemini(
+        analyticsPrompt("Performance Analyst A (Senior Career Coach)"),
+        "evaluation",
+      );
+      geminiResult = JSON.parse(
+        raw
+          .replace(/```json\n?/g, "")
+          .replace(/```\n?/g, "")
+          .trim(),
+      );
       console.log("Gemini performance analysis complete.");
     } catch (e) {
       console.error("Gemini performance analysis error:", e.message);
     }
-    
+
     // Step 2: OpenAI analysis (parallel if available)
     try {
-      const raw = await callOpenAI(analyticsPrompt("Performance Analyst B (Talent Development Expert)"));
+      const raw = await callOpenAI(
+        analyticsPrompt("Performance Analyst B (Talent Development Expert)"),
+      );
       if (raw) {
-        openaiResult = JSON.parse(raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+        openaiResult = JSON.parse(
+          raw
+            .replace(/```json\n?/g, "")
+            .replace(/```\n?/g, "")
+            .trim(),
+        );
         console.log("OpenAI performance analysis complete.");
       }
     } catch (e) {
       console.error("OpenAI performance analysis error:", e.message);
     }
-    
+
     // Step 3: Synthesize via Cohere or average manually
     let finalInsights;
-    
+
     if (geminiResult && openaiResult) {
       // Try Cohere synthesis
       try {
@@ -328,44 +350,97 @@ Return ONLY the JSON object. No markdown, no code blocks.`;
 
         const cohereRaw = await callCohere(synthesisPrompt);
         if (cohereRaw) {
-          finalInsights = JSON.parse(cohereRaw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
-          finalInsights.evaluationMethod = "Multi-AI Consensus (Gemini + OpenAI + Cohere)";
+          finalInsights = JSON.parse(
+            cohereRaw
+              .replace(/```json\n?/g, "")
+              .replace(/```\n?/g, "")
+              .trim(),
+          );
+          finalInsights.evaluationMethod =
+            "Multi-AI Consensus (Gemini + OpenAI + Cohere)";
           console.log("Cohere synthesis complete.");
         }
       } catch (e) {
         console.error("Cohere synthesis error:", e.message);
       }
-      
+
       // Fallback: manual average
       if (!finalInsights) {
-        const avg = (a, b) => (a !== null && b !== null) ? Math.round((a + b) / 2) : (a || b);
+        const avg = (a, b) =>
+          a !== null && b !== null ? Math.round((a + b) / 2) : a || b;
         finalInsights = {
-          overallScore: avg(geminiResult.overallScore, openaiResult.overallScore),
-          technicalScore: avg(geminiResult.technicalScore, openaiResult.technicalScore),
-          communicationScore: avg(geminiResult.communicationScore, openaiResult.communicationScore),
-          problemSolvingScore: avg(geminiResult.problemSolvingScore, openaiResult.problemSolvingScore),
-          cultureFitScore: avg(geminiResult.cultureFitScore, openaiResult.cultureFitScore),
-          confidenceScore: avg(geminiResult.confidenceScore, openaiResult.confidenceScore),
-          topStrengths: [...new Set([...(geminiResult.topStrengths || []), ...(openaiResult.topStrengths || [])])].slice(0, 4),
-          criticalWeaknesses: [...new Set([...(geminiResult.criticalWeaknesses || []), ...(openaiResult.criticalWeaknesses || [])])].slice(0, 4),
-          improvementPlan: [...new Set([...(geminiResult.improvementPlan || []), ...(openaiResult.improvementPlan || [])])].slice(0, 4),
-          overallVerdict: geminiResult.overallVerdict || openaiResult.overallVerdict,
-          narrativeSummary: geminiResult.narrativeSummary || openaiResult.narrativeSummary,
+          overallScore: avg(
+            geminiResult.overallScore,
+            openaiResult.overallScore,
+          ),
+          technicalScore: avg(
+            geminiResult.technicalScore,
+            openaiResult.technicalScore,
+          ),
+          communicationScore: avg(
+            geminiResult.communicationScore,
+            openaiResult.communicationScore,
+          ),
+          problemSolvingScore: avg(
+            geminiResult.problemSolvingScore,
+            openaiResult.problemSolvingScore,
+          ),
+          cultureFitScore: avg(
+            geminiResult.cultureFitScore,
+            openaiResult.cultureFitScore,
+          ),
+          confidenceScore: avg(
+            geminiResult.confidenceScore,
+            openaiResult.confidenceScore,
+          ),
+          topStrengths: [
+            ...new Set([
+              ...(geminiResult.topStrengths || []),
+              ...(openaiResult.topStrengths || []),
+            ]),
+          ].slice(0, 4),
+          criticalWeaknesses: [
+            ...new Set([
+              ...(geminiResult.criticalWeaknesses || []),
+              ...(openaiResult.criticalWeaknesses || []),
+            ]),
+          ].slice(0, 4),
+          improvementPlan: [
+            ...new Set([
+              ...(geminiResult.improvementPlan || []),
+              ...(openaiResult.improvementPlan || []),
+            ]),
+          ].slice(0, 4),
+          overallVerdict:
+            geminiResult.overallVerdict || openaiResult.overallVerdict,
+          narrativeSummary:
+            geminiResult.narrativeSummary || openaiResult.narrativeSummary,
           evaluationMethod: "Dual-AI Analysis (Gemini + OpenAI)",
         };
       }
     } else if (geminiResult) {
-      finalInsights = { ...geminiResult, evaluationMethod: "Single-AI Analysis (Gemini)" };
+      finalInsights = {
+        ...geminiResult,
+        evaluationMethod: "Single-AI Analysis (Gemini)",
+      };
     } else if (openaiResult) {
-      finalInsights = { ...openaiResult, evaluationMethod: "Single-AI Analysis (OpenAI)" };
+      finalInsights = {
+        ...openaiResult,
+        evaluationMethod: "Single-AI Analysis (OpenAI)",
+      };
     } else {
-      return res.json({ success: false, message: "AI analysis failed. Please try again." });
+      return res.json({
+        success: false,
+        message: "AI analysis failed. Please try again.",
+      });
     }
-    
+
     res.json({ success: true, insights: finalInsights });
   } catch (err) {
     console.error("Error generating performance insights:", err);
-    res.status(500).json({ success: false, error: "Error generating insights." });
+    res
+      .status(500)
+      .json({ success: false, error: "Error generating insights." });
   }
 });
 
