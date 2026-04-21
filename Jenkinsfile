@@ -124,7 +124,7 @@ docker run -d -p ${IDLE_PORT}:${PORT} --name ${GREEN} \
   -e OPENAI_API_KEY=${OPENAI_API_KEY} \
   -e COHERE_API_KEY=${COHERE_API_KEY} \
   -e COHERE_API_KEY_2=${COHERE_API_KEY_2} \
-  "${REGISTRY}:latest"
+  ${REGISTRY}:latest
 EOF
                     '''
                 }
