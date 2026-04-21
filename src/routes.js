@@ -61,6 +61,11 @@ const upload = multer({
   },
 });
 
+// Health check endpoint (for CI/CD deployment verification)
+router.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
 // Welcome page
 router.get("/", (req, res) => {
   if (req.session.uniqueId) {
