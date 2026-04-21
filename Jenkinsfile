@@ -11,6 +11,16 @@ pipeline {
     }
     
     stages {
+        stage('Verify Environment') {
+            steps {
+                sh '''
+                    node --version
+                    npm --version
+                    echo "✓ Node.js environment verified"
+                '''
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 checkout scm
