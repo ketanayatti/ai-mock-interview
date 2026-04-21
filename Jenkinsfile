@@ -1,88 +1,103 @@
 pipeline {
     agent any
-    
+
     options {
         timestamps()
         timeout(time: 1, unit: 'HOURS')
     }
-    
+
     environment {
-        IMAGE_NAME = 'ai-mock-interview'
-        DOCKER_USER = 'kethanayatti'
-        EC2_IP = '13.220.61.216'
+        IMAGE_NAME    = 'ai-mock-interview'
+        DOCKER_USER   = 'kethanayatti'
+        EC2_IP        = '13.220.61.216'
         CONTAINER_NAME = 'app-blue'
-        PORT = '3000'
-        REGISTRY_URL = "docker.io/${DOCKER_USER}/${IMAGE_NAME}"
-        PATH = "/home/ubuntu/.nvm/versions/node/v24.15.0/bin:${PATH}"
+        PORT          = '3000'
+        REGISTRY_URL  = "docker.io/${DOCKER_USER}/${IMAGE_NAME}"
     }
-    
+
     stages {
         stage('Verify Environment') {
             steps {
                 sh '''
-                    echo "Node version:"
+                    export NVM_DIR="$HOME/.nvm"
+                    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
                     node --version
-                    echo "NPM version:"
                     npm --version
-                    echo "✓ Node.js environment verified"
+                    echo "Node.js environment verified"
                 '''
             }
         }
-        
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
+
         stage('Install Dependencies') {
             steps {
-                sh 'npm ci'
-            }
-        }
-        
-        stage('Lint') {
-            steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    sh 'npm run lint || echo "No lint script configured"'
-                }
-            }
-        }
-        
-        stage('Test') {
-            steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    sh 'npm test'
-                }
-            }
-        }
-        
-        stage('Security Audit') {
-            when {
-                branch 'main'
-            }
-            steps {
-                sh 'npm audit --audit-level=high'
-            }
-        }
-        
-        stage('Build Docker Image') {
-            steps {
                 sh '''
-                    docker build -t ${REGISTRY_URL}:latest .
-                    docker build -t ${REGISTRY_URL}:${BUILD_NUMBER} .
+                    export NVM_DIR="$HOME/.nvm"
+                    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                    npm ci
                 '''
             }
         }
-        
-        stage('Push to Docker Hub') {
-            when {
-                branch 'main'
-            }
+
+        stage('Lint') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'DOCKER_USER_CRED', passwordVariable: 'DOCKER_PASS')]) {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER_CRED --password-stdin
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                        npm run lint || echo "No lint script configured"
+                    '''
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh '''
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+                        npm test
+                    '''
+                }
+            }
+        }
+
+        stage('Security Audit') {
+            when { branch 'main' }
+            steps {
+
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh 'npm audit --audit-level=high'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+
+                sh '''
+                    docker build -t ${REGISTRY_URL}:${BUILD_NUMBER} .
+                    docker tag  ${REGISTRY_URL}:${BUILD_NUMBER} ${REGISTRY_URL}:latest
+                '''
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            when { branch 'main' }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-credentials',
+                    usernameVariable: 'DOCKER_LOGIN_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo $DOCKER_PASS | docker login -u $DOCKER_LOGIN_USER --password-stdin
                         docker push ${REGISTRY_URL}:latest
                         docker push ${REGISTRY_URL}:${BUILD_NUMBER}
                         docker logout
@@ -90,50 +105,73 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Deploy to AWS EC2') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                    sh '''
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${EC2_IP} << 'EOF'
-                            docker pull ${REGISTRY_URL}:latest
-                            docker stop ${CONTAINER_NAME} 2>/dev/null || true
-                            docker rm ${CONTAINER_NAME} 2>/dev/null || true
-                            docker run -d \
-                                -p ${PORT}:${PORT} \
-                                --name ${CONTAINER_NAME} \
-                                --restart always \
-                                ${REGISTRY_URL}:latest
-                        EOF
-                    '''
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ec2-ssh-key',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+
+                    sh """
+                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \${SSH_USER}@${EC2_IP} \\
+                            REGISTRY_URL=${REGISTRY_URL} \\
+                            CONTAINER_NAME=${CONTAINER_NAME} \\
+                            PORT=${PORT} \\
+                            BUILD_NUMBER=${BUILD_NUMBER} \\
+                            bash -s << 'ENDSSH'
+                                docker pull \$REGISTRY_URL:latest
+                                docker stop  \$CONTAINER_NAME 2>/dev/null || true
+                                docker rm    \$CONTAINER_NAME 2>/dev/null || true
+                                docker run -d \\
+                                    -p \$PORT:\$PORT \\
+                                    --name \$CONTAINER_NAME \\
+                                    --restart always \\
+                                    \$REGISTRY_URL:latest
+                                # Clean up dangling images to save disk
+                                docker image prune -f
+ENDSSH
+                    """
                 }
             }
         }
-        
+
         stage('Health Check') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                    sh '''
-                        sleep 5
-                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${EC2_IP} "curl -f http://localhost:${PORT}/health" || exit 1
-                    '''
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ec2-ssh-key',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh """
+                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \${SSH_USER}@${EC2_IP} \\
+                            PORT=${PORT} bash -s << 'ENDSSH'
+                                for i in 1 2 3 4 5; do
+                                    echo "Health check attempt \$i..."
+                                    curl -sf http://localhost:\$PORT/health && exit 0
+                                    sleep 10
+                                done
+                                echo "Health check failed after 5 attempts"
+                                exit 1
+ENDSSH
+                    """
                 }
             }
         }
     }
-    
+
     post {
         success {
-            echo "✓ Pipeline succeeded for branch: ${BRANCH_NAME}"
+            echo "Pipeline succeeded — branch: ${BRANCH_NAME} build: ${BUILD_NUMBER}"
         }
         failure {
-            echo "✗ Pipeline failed for branch: ${BRANCH_NAME}"
+            echo "Pipeline FAILED — branch: ${BRANCH_NAME} build: ${BUILD_NUMBER}"
+        }
+        always {
+            sh 'docker rmi ${REGISTRY_URL}:${BUILD_NUMBER} || true'
         }
     }
 }
