@@ -161,12 +161,14 @@ pipeline {
 
             script {
                 if (env.BRANCH_NAME == 'main') {
-                    sh '''
-                    ssh ubuntu@${EC2_IP} << EOF
-                    echo "Rollback triggered"
-                    sudo systemctl reload nginx
-                    EOF
-                    '''
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY', usernameVariable: 'USER')]) {
+                        sh '''
+                        ssh -i $KEY -o StrictHostKeyChecking=no $USER@${EC2_IP} << EOF
+                        echo "Rollback triggered"
+                        sudo systemctl reload nginx
+                        EOF
+                        '''
+                    }
                 }
             }
         }
