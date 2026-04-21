@@ -13,13 +13,14 @@ pipeline {
         CONTAINER_NAME = 'app-blue'
         PORT = '3000'
         REGISTRY_URL = "docker.io/${DOCKER_USER}/${IMAGE_NAME}"
-        PATH = "/home/ubuntu/.nvm/versions/node/v24.15.0/bin:${PATH}"
     }
     
     stages {
         stage('Verify Environment') {
             steps {
                 sh '''
+                    export NVM_DIR="$HOME/.nvm"
+                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
                     echo "Node version:"
                     node --version
                     echo "NPM version:"
@@ -37,14 +38,22 @@ pipeline {
         
         stage('Install Dependencies') {
             steps {
-                sh 'npm ci'
+                sh '''
+                    export NVM_DIR="$HOME/.nvm"
+                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                    npm ci
+                '''
             }
         }
         
         stage('Lint') {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    sh 'npm run lint || echo "No lint script configured"'
+                    sh '''
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                        npm run lint || echo "No lint script configured"
+                    '''
                 }
             }
         }
@@ -52,7 +61,11 @@ pipeline {
         stage('Test') {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    sh 'npm test'
+                    sh '''
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                        npm test
+                    '''
                 }
             }
         }
@@ -62,7 +75,11 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh 'npm audit --audit-level=high'
+                sh '''
+                    export NVM_DIR="$HOME/.nvm"
+                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                    npm audit --audit-level=high
+                '''
             }
         }
         
