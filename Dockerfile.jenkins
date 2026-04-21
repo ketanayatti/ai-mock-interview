@@ -1,9 +1,0 @@
-FROM node:18
-
-# Install Docker CLI
-RUN apt-get update && \
-    apt-get install -y docker.io && \
-    apt-get clean
-
-# Verify installs
-RUN node -v && npm -v && docker -v
