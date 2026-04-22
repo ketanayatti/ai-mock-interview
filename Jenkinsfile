@@ -2,25 +2,24 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME    = "ai-mock-interview"
-        DOCKER_USER = "kethanayatti"
-        REGISTRY    = "docker.io/kethanayatti/ai-mock-interview"
-        EC2_IP      = "13.220.61.216"
-        APP_PORT    = "3000"
+        REGISTRY     = "docker.io/kethanayatti/ai-mock-interview"
+        EC2_IP       = "13.220.61.216"
+        NGINX_CONF   = "/etc/nginx/sites-available/default"
+        SLOT_A       = "3000"
+        SLOT_B       = "3001"
+        STATE_DIR    = "/tmp/bg-state"
     }
 
     options {
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 30, unit: 'MINUTES')   // overall pipeline timeout
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     stages {
 
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
         stage('Build & Test') {
@@ -36,9 +35,9 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh """
-                    docker build \
-                        -t ${REGISTRY}:latest \
-                        -t ${REGISTRY}:${BUILD_NUMBER} \
+                    docker build \\
+                        -t ${REGISTRY}:latest \\
+                        -t ${REGISTRY}:${BUILD_NUMBER} \\
                         .
                 """
             }
@@ -49,11 +48,11 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'docker-credentials',
-                    usernameVariable: 'DOCKER_LOGIN_USER',
-                    passwordVariable: 'DOCKER_LOGIN_PASS'
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        echo "$DOCKER_LOGIN_PASS" | docker login -u "$DOCKER_LOGIN_USER" --password-stdin
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push "$REGISTRY":latest
                         docker push "$REGISTRY":"$BUILD_NUMBER"
                         docker logout
@@ -62,7 +61,7 @@ pipeline {
             }
         }
 
-        stage('Deploy GREEN') {
+        stage('Deploy — Idle Slot') {
             when { branch 'main' }
             steps {
                 withCredentials([
@@ -71,13 +70,13 @@ pipeline {
                         keyFileVariable: 'KEY',
                         usernameVariable: 'SSH_USER'
                     ),
-                    string(credentialsId: 'mongo-uri',       variable: 'MONGO_URI'),
-                    string(credentialsId: 'gemini-api-key',  variable: 'GEMINI_API_KEY')
+                    string(credentialsId: 'mongo-uri',      variable: 'MONGO_URI'),
+                    string(credentialsId: 'gemini-api-key', variable: 'GEMINI_API_KEY')
                 ]) {
-                  
+                    // Secrets written using shell printf — no Groovy string interpolation
                     sh '''
-                        printf 'PORT=%s\nMONGO_URI=%s\nGEMINI_API_KEY=%s\n' \
-                            "$APP_PORT" "$MONGO_URI" "$GEMINI_API_KEY" > app.env
+                        printf 'PORT=3000\nMONGO_URI=%s\nGEMINI_API_KEY=%s\n' \
+                            "$MONGO_URI" "$GEMINI_API_KEY" > app.env
                     '''
 
                     sh '''
@@ -87,50 +86,76 @@ pipeline {
                     '''
 
                     sh '''
-                        ssh -i "$KEY" -o StrictHostKeyChecking=no "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+                        ssh -i "$KEY" -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
 set -e
+NGINX_CONF="/etc/nginx/sites-available/default"
+STATE_DIR="/tmp/bg-state"
+mkdir -p "$STATE_DIR"
 
-# ── Detect which port is currently active ──────────────────────
-ACTIVE_PORT=$(grep -oP 'proxy_pass http://localhost:\\K[0-9]+' \
-              /etc/nginx/sites-available/default 2>/dev/null || echo "3000")
-[ -z "$ACTIVE_PORT" ] && ACTIVE_PORT=3000
+# ─── SOURCE OF TRUTH: read active port from nginx ──────────────────────────
+ACTIVE_PORT=$(grep -oP 'proxy_pass\s+http://localhost:\K[0-9]+' "$NGINX_CONF" \
+              2>/dev/null | head -1)
 
-if [ "$ACTIVE_PORT" = "3000" ]; then
-    IDLE_PORT=3001
-else
-    IDLE_PORT=3000
+if [ -z "$ACTIVE_PORT" ]; then
+    echo "⚠️  No proxy_pass found in nginx config — defaulting active slot to 3000"
+    ACTIVE_PORT=3000
 fi
 
-echo "$ACTIVE_PORT" > /tmp/active_port
-echo "$IDLE_PORT"   > /tmp/idle_port
+# Validate — must be one of our two known slots
+if [ "$ACTIVE_PORT" != "3000" ] && [ "$ACTIVE_PORT" != "3001" ]; then
+    echo "❌ ERROR: nginx proxy_pass references unexpected port: $ACTIVE_PORT"
+    echo "   Valid slots are 3000 and 3001. Manual investigation required."
+    exit 1
+fi
 
-echo "Active: $ACTIVE_PORT  →  Deploying to idle: $IDLE_PORT"
+# Derive idle slot
+if [ "$ACTIVE_PORT" = "3000" ]; then
+    IDLE_PORT=3001
+    IDLE_CONTAINER="app-slot-3001"
+    ACTIVE_CONTAINER="app-slot-3000"
+else
+    IDLE_PORT=3000
+    IDLE_CONTAINER="app-slot-3000"
+    ACTIVE_CONTAINER="app-slot-3001"
+fi
 
-# ── Pull latest image ───────────────────────────────────────────
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Nginx (source of truth)"
+echo "    Live  : port $ACTIVE_PORT  ($ACTIVE_CONTAINER)"
+echo "    Target: port $IDLE_PORT   ($IDLE_CONTAINER)  ← deploying here"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Persist state — downstream stages always read from here, never assume
+echo "$ACTIVE_PORT"      > "$STATE_DIR/active_port"
+echo "$IDLE_PORT"        > "$STATE_DIR/idle_port"
+echo "$ACTIVE_CONTAINER" > "$STATE_DIR/active_container"
+echo "$IDLE_CONTAINER"   > "$STATE_DIR/idle_container"
+
+# ─── Pull new image ─────────────────────────────────────────────────────────
 docker pull kethanayatti/ai-mock-interview:latest
 
-# ── Stop old green container if present ────────────────────────
-docker rm -f app-green 2>/dev/null || true
+# ─── Replace idle slot container ────────────────────────────────────────────
+docker rm -f "$IDLE_CONTAINER" 2>/dev/null || true
 
-# ── Start new green container on idle port ─────────────────────
 docker run -d \
-    -p "$IDLE_PORT":3000 \
-    --name app-green \
+    --name  "$IDLE_CONTAINER" \
+    -p      "$IDLE_PORT":3000 \
     --restart unless-stopped \
     --env-file /tmp/app.env \
     kethanayatti/ai-mock-interview:latest
 
 rm -f /tmp/app.env
-echo "app-green started on port $IDLE_PORT"
+echo "✅ $IDLE_CONTAINER is up on port $IDLE_PORT"
 REMOTE
                     '''
                 }
             }
         }
 
-        stage('Health Check GREEN') {
+        stage('Health Check — Idle Slot') {
             when { branch 'main' }
-            options { timeout(time: 2, unit: 'MINUTES') }
+            options { timeout(time: 3, unit: 'MINUTES') }
             steps {
                 withCredentials([sshUserPrivateKey(
                     credentialsId: 'ec2-ssh-key',
@@ -138,21 +163,32 @@ REMOTE
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -i "$KEY" -o StrictHostKeyChecking=no "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+                        ssh -i "$KEY" -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
 set -e
-IDLE_PORT=$(cat /tmp/idle_port)
-echo "Health-checking http://localhost:$IDLE_PORT/health ..."
+STATE_DIR="/tmp/bg-state"
+IDLE_PORT=$(cat "$STATE_DIR/idle_port")
+IDLE_CONTAINER=$(cat "$STATE_DIR/idle_container")
 
-for i in $(seq 1 12); do
-    if curl -sf "http://localhost:$IDLE_PORT/health"; then
-        echo "Health check passed on attempt $i"
+echo "Checking $IDLE_CONTAINER directly on http://localhost:$IDLE_PORT/health ..."
+echo "(bypassing nginx — validates new container in isolation)"
+
+ATTEMPTS=12
+for i in $(seq 1 $ATTEMPTS); do
+    HTTP_CODE=$(curl -o /dev/null -sw '%{http_code}' \
+                "http://localhost:$IDLE_PORT/health" 2>/dev/null || echo "000")
+
+    if [ "$HTTP_CODE" = "200" ]; then
+        echo "✅ Health check passed on attempt $i/$ATTEMPTS (HTTP $HTTP_CODE)"
         exit 0
     fi
-    echo "Attempt $i/12 failed — retrying in 5s..."
+
+    echo "  Attempt $i/$ATTEMPTS → HTTP $HTTP_CODE — waiting 5s..."
     sleep 5
 done
 
-echo "Health check FAILED after 12 attempts"
+echo "❌ Health check FAILED after $ATTEMPTS attempts — dumping container logs:"
+docker logs "$IDLE_CONTAINER" --tail 50 2>&1 || true
 exit 1
 REMOTE
                     '''
@@ -169,22 +205,57 @@ REMOTE
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -i "$KEY" -o StrictHostKeyChecking=no "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+                        ssh -i "$KEY" -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
 set -e
-IDLE_PORT=$(cat /tmp/idle_port)
+NGINX_CONF="/etc/nginx/sites-available/default"
+STATE_DIR="/tmp/bg-state"
 
-# Atomic swap of nginx proxy_pass
-sudo sed -i "s|proxy_pass http://localhost:[0-9]*;|proxy_pass http://localhost:$IDLE_PORT;|" \
-    /etc/nginx/sites-available/default
+ACTIVE_PORT=$(cat "$STATE_DIR/active_port")
+IDLE_PORT=$(cat "$STATE_DIR/idle_port")
 
-sudo nginx -t
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Switching nginx:  $ACTIVE_PORT  →  $IDLE_PORT"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ─── Backup config before any modification ──────────────────────────────────
+sudo cp "$NGINX_CONF" "${NGINX_CONF}.bak.$(date +%s)"
+sudo cp "$NGINX_CONF" "${NGINX_CONF}.bak"   # fixed name for rollback stages
+
+# ─── Precise proxy_pass update (only that line) ─────────────────────────────
+sudo sed -i \
+    "s|proxy_pass http://localhost:[0-9]\+;|proxy_pass http://localhost:$IDLE_PORT;|" \
+    "$NGINX_CONF"
+
+# ─── Validate config ────────────────────────────────────────────────────────
+if ! sudo nginx -t 2>&1; then
+    echo "❌ nginx config test FAILED — restoring backup"
+    sudo cp "${NGINX_CONF}.bak" "$NGINX_CONF"
+    exit 1
+fi
+
 sudo systemctl reload nginx
 
-# Rotate container names: blue → old, green → blue
-docker rename app-blue app-old 2>/dev/null || true
-docker rename app-green app-blue
+# ─── VERIFICATION: read nginx back to confirm source of truth updated ───────
+NGINX_LIVE_PORT=$(grep -oP 'proxy_pass\s+http://localhost:\K[0-9]+' "$NGINX_CONF" \
+                  2>/dev/null | head -1)
 
-echo "Traffic switched to port $IDLE_PORT"
+if [ "$NGINX_LIVE_PORT" != "$IDLE_PORT" ]; then
+    echo "❌ VERIFICATION FAILED:"
+    echo "   nginx proxy_pass shows: $NGINX_LIVE_PORT"
+    echo "   expected:               $IDLE_PORT"
+    echo "   Restoring previous config..."
+    sudo cp "${NGINX_CONF}.bak" "$NGINX_CONF"
+    sudo nginx -t && sudo systemctl reload nginx
+    exit 1
+fi
+
+echo "✅ nginx verified — proxy_pass → http://localhost:$NGINX_LIVE_PORT"
+
+# ─── Persist confirmed live/previous ports ──────────────────────────────────
+echo "$IDLE_PORT"   > "$STATE_DIR/current_live_port"
+echo "$ACTIVE_PORT" > "$STATE_DIR/previous_live_port"
+
 REMOTE
                     '''
                 }
@@ -200,24 +271,56 @@ REMOTE
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -i "$KEY" -o StrictHostKeyChecking=no "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+                        ssh -i "$KEY" -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
 set -e
+NGINX_CONF="/etc/nginx/sites-available/default"
+STATE_DIR="/tmp/bg-state"
 
-if ! curl -sf http://localhost/health; then
-    echo "Post-switch validation FAILED — rolling back"
+CURRENT_LIVE=$(cat "$STATE_DIR/current_live_port")
+PREVIOUS_LIVE=$(cat "$STATE_DIR/previous_live_port")
 
-    ACTIVE_PORT=$(cat /tmp/active_port)
-    sudo sed -i "s|proxy_pass http://localhost:[0-9]*;|proxy_pass http://localhost:$ACTIVE_PORT;|" \
-        /etc/nginx/sites-available/default
-    sudo systemctl reload nginx
+echo "Validating end-to-end: nginx :80 → container on port $CURRENT_LIVE ..."
 
-    docker rm -f app-blue  2>/dev/null || true
-    docker rename app-old app-blue 2>/dev/null || true
+HTTP_CODE=$(curl -o /dev/null -sw '%{http_code}' \
+            http://localhost/health 2>/dev/null || echo "000")
 
-    exit 1
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "✅ End-to-end validation passed (HTTP $HTTP_CODE)"
+    echo "   nginx :80  →  port $CURRENT_LIVE  ✓"
+    exit 0
 fi
 
-echo "Post-switch validation passed"
+# ─────────────────────────────────────────────────────────────────────────────
+# ROLLBACK
+# Order: (1) nginx first, (2) verify nginx, (3) update state
+# Containers are NOT touched — old slot is still running and healthy
+# ─────────────────────────────────────────────────────────────────────────────
+echo "❌ Validation FAILED (HTTP $HTTP_CODE) — rolling back"
+
+# Step 1: Revert nginx proxy_pass
+sudo sed -i \
+    "s|proxy_pass http://localhost:[0-9]\+;|proxy_pass http://localhost:$PREVIOUS_LIVE;|" \
+    "$NGINX_CONF"
+sudo nginx -t && sudo systemctl reload nginx
+
+# Step 2: Verify nginx is back on previous port
+NGINX_PORT=$(grep -oP 'proxy_pass\s+http://localhost:\K[0-9]+' "$NGINX_CONF" | head -1)
+
+if [ "$NGINX_PORT" != "$PREVIOUS_LIVE" ]; then
+    echo "🚨 CRITICAL: nginx rollback verification FAILED"
+    echo "   nginx shows: $NGINX_PORT  |  expected: $PREVIOUS_LIVE"
+    echo "   Manual intervention required — do NOT proceed"
+    exit 2
+fi
+
+echo "✅ Nginx rolled back and verified → port $NGINX_PORT (previous live)"
+
+# Step 3: Update state to reflect the rollback
+echo "$PREVIOUS_LIVE" > "$STATE_DIR/current_live_port"
+echo "$CURRENT_LIVE"  > "$STATE_DIR/previous_live_port"
+
+exit 1
 REMOTE
                     '''
                 }
@@ -234,36 +337,62 @@ REMOTE
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -i "$KEY" -o StrictHostKeyChecking=no "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+                        ssh -i "$KEY" -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
 set -e
+NGINX_CONF="/etc/nginx/sites-available/default"
+STATE_DIR="/tmp/bg-state"
 
-echo "Monitoring /health for 2 minutes..."
-for i in $(seq 1 12); do
-    if ! curl -sf http://localhost/health; then
-        echo "Runtime failure on check $i — rolling back"
+CURRENT_LIVE=$(cat "$STATE_DIR/current_live_port")
+PREVIOUS_LIVE=$(cat "$STATE_DIR/previous_live_port")
 
-        ACTIVE_PORT=$(cat /tmp/active_port)
-        sudo sed -i "s|proxy_pass http://localhost:[0-9]*;|proxy_pass http://localhost:$ACTIVE_PORT;|" \
-            /etc/nginx/sites-available/default
-        sudo systemctl reload nginx
+CHECKS=12
+INTERVAL=10
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Stability monitor: $CHECKS checks × ${INTERVAL}s = $(( CHECKS * INTERVAL ))s"
+echo "  Watching:  nginx :80  →  port $CURRENT_LIVE"
+echo "  Fallback:  port $PREVIOUS_LIVE (container still running)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-        docker rm -f app-blue  2>/dev/null || true
-        docker rename app-old app-blue 2>/dev/null || true
+for i in $(seq 1 $CHECKS); do
+    HTTP_CODE=$(curl -o /dev/null -sw '%{http_code}' \
+                http://localhost/health 2>/dev/null || echo "000")
 
-        exit 1
+    if [ "$HTTP_CODE" = "200" ]; then
+        echo "  ✓ Check $i/$CHECKS — HTTP $HTTP_CODE"
+        sleep $INTERVAL
+        continue
     fi
-    echo "Check $i/12 OK"
-    sleep 10
+
+    echo "❌ Check $i/$CHECKS FAILED (HTTP $HTTP_CODE) — rolling back"
+
+    # ROLLBACK: nginx first, then verify
+    sudo sed -i \
+        "s|proxy_pass http://localhost:[0-9]\+;|proxy_pass http://localhost:$PREVIOUS_LIVE;|" \
+        "$NGINX_CONF"
+    sudo nginx -t && sudo systemctl reload nginx
+
+    NGINX_PORT=$(grep -oP 'proxy_pass\s+http://localhost:\K[0-9]+' "$NGINX_CONF" | head -1)
+    if [ "$NGINX_PORT" != "$PREVIOUS_LIVE" ]; then
+        echo "🚨 CRITICAL: nginx rollback verification FAILED — manual intervention needed"
+        exit 2
+    fi
+
+    echo "✅ Nginx rolled back and verified → port $NGINX_PORT"
+    echo "$PREVIOUS_LIVE" > "$STATE_DIR/current_live_port"
+    echo "$CURRENT_LIVE"  > "$STATE_DIR/previous_live_port"
+    exit 1
 done
 
-echo "System stable — monitoring window complete"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ Monitoring window passed — system stable on port $CURRENT_LIVE"
 REMOTE
                     '''
                 }
             }
         }
 
-        stage('Cleanup') {
+        stage('Cleanup — Old Slot') {
             when { branch 'main' }
             steps {
                 withCredentials([sshUserPrivateKey(
@@ -272,12 +401,24 @@ REMOTE
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -i "$KEY" -o StrictHostKeyChecking=no "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+                        ssh -i "$KEY" -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+STATE_DIR="/tmp/bg-state"
+PREVIOUS_LIVE=$(cat "$STATE_DIR/previous_live_port" 2>/dev/null || echo "")
 
-docker rm -f app-old 2>/dev/null || true
+if [ -z "$PREVIOUS_LIVE" ]; then
+    echo "No previous port in state — skipping cleanup"
+else
+    OLD_CONTAINER="app-slot-$PREVIOUS_LIVE"
+    echo "Removing old slot: $OLD_CONTAINER (port $PREVIOUS_LIVE)"
+    docker rm -f "$OLD_CONTAINER" 2>/dev/null || true
+    echo "✅ $OLD_CONTAINER removed"
+fi
+
+# Prune dangling images only (NOT all unused — keeps rollback images)
 docker image prune -f
-docker container prune -f
 
+echo ""
 echo "Disk usage after cleanup:"
 df -h /
 REMOTE
@@ -289,21 +430,44 @@ REMOTE
         stage('Load Test') {
             when { branch 'main' }
             steps {
-                sh "ab -n 200 -c 20 http://${EC2_IP}/"
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ec2-ssh-key',
+                    keyFileVariable: 'KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh '''
+                        ssh -i "$KEY" -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@"$EC2_IP" bash -s << 'REMOTE'
+set -e
+STATE_DIR="/tmp/bg-state"
+LIVE_PORT=$(cat "$STATE_DIR/current_live_port")
+
+echo "Load test: nginx :80 → container on port $LIVE_PORT"
+
+# Install ab if not present
+if ! command -v ab &>/dev/null; then
+    echo "Installing apache2-utils..."
+    sudo apt-get install -y apache2-utils -qq
+fi
+
+ab -n 200 -c 20 http://localhost/
+echo "✅ Load test complete"
+REMOTE
+                    '''
+                }
             }
         }
 
     } 
-
     post {
         success {
-            echo "🚀 Deployment SUCCESS — build #${BUILD_NUMBER} is live"
+            echo "🚀 Build #${BUILD_NUMBER} — deployment successful and production-verified"
         }
         failure {
-            echo "❌ Deployment FAILED — check logs above for details"
+            echo "❌ Build #${BUILD_NUMBER} — deployment failed; nginx state preserved for diagnosis"
         }
         always {
-            sh 'rm -f app.env || true' 
+            sh 'rm -f app.env || true'
             cleanWs()
         }
     }
