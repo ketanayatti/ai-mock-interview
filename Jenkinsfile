@@ -134,12 +134,20 @@ COHERE_API_KEY_2=${COHERE_API_KEY_2}
                         ssh -i $KEY -o StrictHostKeyChecking=no $SSH_USER@''' + EC2_IP + ''' << 'ENDSSH'
 set -e
 
-# Detect the port the current BLUE container is bound to.
-# Falls back to 3000 if BLUE doesn't exist yet (first deploy).
-ACTIVE_PORT=$(docker inspect \
-  --format='{{ (index (index .HostConfig.PortBindings "3000/tcp") 0).HostPort }}' \
-  app-blue 2>/dev/null || echo "3000")
-IDLE_PORT=$([ "$ACTIVE_PORT" = "3000" ] && echo "3001" || echo "3000")
+ACTIVE_PORT=$(cat /etc/nginx/sites-available/default | grep proxy_pass | grep -o '[0-9]\+' | tail -1)
+
+if [ -z "$ACTIVE_PORT" ]; then
+  ACTIVE_PORT=3000
+fi
+
+if [ "$ACTIVE_PORT" = "3000" ]; then
+  IDLE_PORT=3001
+else
+  IDLE_PORT=3000
+fi
+
+echo "ACTIVE_PORT=$ACTIVE_PORT"
+echo "IDLE_PORT=$IDLE_PORT"
 
 echo "$ACTIVE_PORT" > /tmp/active_port
 echo "$IDLE_PORT"   > /tmp/idle_port
