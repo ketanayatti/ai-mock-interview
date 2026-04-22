@@ -134,7 +134,7 @@ COHERE_API_KEY_2=${COHERE_API_KEY_2}
                         ssh -i $KEY -o StrictHostKeyChecking=no $SSH_USER@''' + EC2_IP + ''' << 'ENDSSH'
 set -e
 
-ACTIVE_PORT=$(cat /etc/nginx/sites-available/default | grep proxy_pass | grep -o '[0-9]\+' | tail -1)
+ACTIVE_PORT=$(cat /etc/nginx/sites-available/default | grep proxy_pass | grep -o '[0-9][0-9]*' | tail -1)
 
 if [ -z "$ACTIVE_PORT" ]; then
   ACTIVE_PORT=3000
@@ -148,6 +148,7 @@ fi
 
 echo "ACTIVE_PORT=$ACTIVE_PORT"
 echo "IDLE_PORT=$IDLE_PORT"
+
 
 echo "$ACTIVE_PORT" > /tmp/active_port
 echo "$IDLE_PORT"   > /tmp/idle_port
