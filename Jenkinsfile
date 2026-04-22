@@ -112,6 +112,12 @@ echo "$IDLE_CONTAINER"   > "$STATE_DIR/idle_container"
 
 docker pull kethanayatti/ai-mock-interview:latest
 docker rm -f "$IDLE_CONTAINER" 2>/dev/null || true
+BLOCKING=$(docker ps -q --filter "publish=$IDLE_PORT")
+if [ -n "$BLOCKING" ]; then
+    BLOCKING_NAME=$(docker inspect --format '{{.Name}}' $BLOCKING)
+    echo "WARNING: Removing container $BLOCKING_NAME blocking port $IDLE_PORT"
+    docker rm -f $BLOCKING
+fi
 docker run -d --name "$IDLE_CONTAINER" -p "$IDLE_PORT":3000 --restart unless-stopped --env-file /tmp/app.env kethanayatti/ai-mock-interview:latest
 rm -f /tmp/app.env
 echo "OK: $IDLE_CONTAINER started on port $IDLE_PORT"
