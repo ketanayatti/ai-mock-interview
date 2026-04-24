@@ -2,7 +2,7 @@
 
 const Space = require("../models/spaceModel");
 const Session = require("../models/sessionModel");
-const { callGemini } = require("../config/aiServices");
+const { callGemini, generateSummary } = require("../config/aiServices");
 const path = require("path");
 const fs = require("fs");
 const pdfParse = require("pdf-parse");
@@ -29,40 +29,14 @@ const extractTextFromDOCX = async (filePath) => {
 };
 
 // =======================
-// Gemini Resume Summary
+// Resume Summary — Master Logic
+// Delegates to generateSummary() in aiServices:
+//   Primary:  Gemini 2.5-flash (token-capped, low-temp)
+//   Fallback: Cohere 2
+//   Last:     Static placeholder (never crashes)
 // =======================
 const purifyContent = async (resumeText, jobDescription) => {
-  let prompt;
-
-  if (jobDescription && jobDescription.trim().length > 20) {
-    prompt = `
-Resume:
-"${resumeText}"
-
-Job Description:
-"${jobDescription}"
-
-Summarize only the most relevant skills, achievements, and qualifications 
-that match the job description.
-Be concise and clear.
-`;
-  } else {
-    prompt = `
-Resume:
-"${resumeText}"
-
-Summarize the key strengths, skills, and achievements.
-Be concise and clear.
-`;
-  }
-
-  try {
-    const resultText = await callGemini(prompt);
-    return resultText || "Error generating summary";
-  } catch (error) {
-    console.error("Error summarizing content:", error);
-    return "Error generating summary";
-  }
+  return await generateSummary(resumeText, jobDescription);
 };
 
 // =======================
@@ -313,6 +287,26 @@ function extractVerdictFromSummary(summary) {
 }
 
 // =======================
+// Get Score from Round (prefers aiInsights, falls back to regex)
+// =======================
+function getScoreFromRound(round) {
+  if (round.aiInsights && round.aiInsights.overallScore != null) {
+    return round.aiInsights.overallScore;
+  }
+  return extractScoreFromSummary(round.summary);
+}
+
+// =======================
+// Get Verdict from Round (prefers aiInsights, falls back to regex)
+// =======================
+function getVerdictFromRound(round) {
+  if (round.aiInsights && round.aiInsights.overallVerdict) {
+    return round.aiInsights.overallVerdict;
+  }
+  return extractVerdictFromSummary(round.summary);
+}
+
+// =======================
 // Get Performance Data
 // =======================
 exports.getPerformance = async (req, res) => {
@@ -346,8 +340,9 @@ exports.getPerformance = async (req, res) => {
 
       if (space.interviewRounds) {
         space.interviewRounds.forEach(round => {
-          const score = extractScoreFromSummary(round.summary);
-          const verdict = extractVerdictFromSummary(round.summary);
+          // Use aiInsights first (accurate) — fall back to regex on markdown
+          const score = getScoreFromRound(round);
+          const verdict = getVerdictFromRound(round);
 
           const roundData = {
             spaceId: space._id,

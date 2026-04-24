@@ -203,244 +203,154 @@ router.post(
   interviewController.finishRound,
 );
 
-// API: Generate AI Performance Insights via 3-AI Pipeline
+// API: Per-Space AI Performance Insights — 3-Stage Pipeline with Caching
+// Each space and round is treated as an INDIVIDUAL unit — never mixed together.
+// Cached results (round.aiInsights) are returned instantly with ZERO AI calls.
 router.get("/api/performance-insights", protect, async (req, res) => {
   try {
-    const {
-      callGemini,
-      callOpenAI,
-      callCohere,
-    } = require("./config/aiServices");
+    const { generateRoundInsights, getHealthStatus } = require("./config/aiServices");
     const QuestionAnswer = require("./models/questionAnswerModel");
 
-    const spaces = await Space.find({ studentId: req.session.uniqueId });
+    const spaces = await Space.find({ studentId: req.session.uniqueId }).sort({ createdAt: -1 });
 
-    // Collect all completed round summaries and Q&A data
-    const completedRounds = [];
-    spaces.forEach((space) => {
-      if (space.interviewRounds) {
-        space.interviewRounds.forEach((round) => {
-          if (round.status === "completed" && round.summary) {
-            completedRounds.push({
-              company: space.companyName,
-              position: space.jobPosition,
-              level: space.experienceLevel,
-              round: round.name,
-              summary: round.summary.substring(0, 1500), // Truncate to avoid token limits
-            });
-          }
-        });
-      }
-    });
-
-    if (completedRounds.length === 0) {
+    if (!spaces.length) {
       return res.json({
         success: true,
-        insights: null,
-        message:
-          "No completed interviews to analyze yet. Complete at least one interview round to receive AI-powered performance insights.",
+        perSpaceInsights: [],
+        globalStats: null,
+        message: "No interview spaces found. Create a space and complete at least one round.",
       });
     }
 
-    // Build the comprehensive analytics prompt
-    const summariesText = completedRounds
-      .map(
-        (r, i) =>
-          `--- Interview ${i + 1}: ${r.company} | ${r.position} | ${r.round} Round (${r.level}) ---\n${r.summary}`,
-      )
-      .join("\n\n");
+    const perSpaceInsights = [];
+    let newAnalysisCount = 0;
+    let cachedCount = 0;
 
-    const analyticsPrompt = (
-      aiRole,
-    ) => `You are ${aiRole}, a career coaching AI that provides data-driven performance analytics.
+    for (const space of spaces) {
+      const spaceResult = {
+        spaceId:         space._id,
+        companyName:     space.companyName,
+        jobPosition:     space.jobPosition,
+        experienceLevel: space.experienceLevel,
+        createdAt:       space.createdAt,
+        rounds:          [],
+      };
 
-TASK: Analyze the following ${completedRounds.length} completed interview evaluation(s) and produce a comprehensive performance report.
-
-${summariesText}
-
-Provide your analysis in the following STRICT JSON format (no markdown, no code blocks, ONLY valid JSON):
-{
-  "overallScore": <number 0-100>,
-  "technicalScore": <number 0-100 or null if no technical rounds>,
-  "communicationScore": <number 0-100>,
-  "problemSolvingScore": <number 0-100>,
-  "cultureFitScore": <number 0-100 or null if not applicable>,
-  "confidenceScore": <number 0-100>,
-  "topStrengths": ["strength1", "strength2", "strength3"],
-  "criticalWeaknesses": ["weakness1", "weakness2", "weakness3"],
-  "improvementPlan": ["action1", "action2", "action3"],
-  "overallVerdict": "Strong Hire" | "Hire" | "Borderline" | "No Hire",
-  "narrativeSummary": "A 2-3 sentence executive summary of the candidate's overall performance across all interviews."
-}
-
-IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, no explanations outside the JSON.`;
-
-    console.log("Generating AI Performance Insights...");
-
-    let geminiResult, openaiResult;
-
-    // Step 1: Gemini analysis
-    try {
-      const raw = await callGemini(
-        analyticsPrompt("Performance Analyst A (Senior Career Coach)"),
-        "evaluation",
-      );
-      geminiResult = JSON.parse(
-        raw
-          .replace(/```json\n?/g, "")
-          .replace(/```\n?/g, "")
-          .trim(),
-      );
-      console.log("Gemini performance analysis complete.");
-    } catch (e) {
-      console.error("Gemini performance analysis error:", e.message);
-    }
-
-    // Step 2: OpenAI analysis (parallel if available)
-    try {
-      const raw = await callOpenAI(
-        analyticsPrompt("Performance Analyst B (Talent Development Expert)"),
-      );
-      if (raw) {
-        openaiResult = JSON.parse(
-          raw
-            .replace(/```json\n?/g, "")
-            .replace(/```\n?/g, "")
-            .trim(),
-        );
-        console.log("OpenAI performance analysis complete.");
-      }
-    } catch (e) {
-      console.error("OpenAI performance analysis error:", e.message);
-    }
-
-    // Step 3: Synthesize via Cohere or average manually
-    let finalInsights;
-
-    if (geminiResult && openaiResult) {
-      // Try Cohere synthesis
-      try {
-        const synthesisPrompt = `You are a Chief Career Advisor. Two independent AI analysts have evaluated a candidate's performance across ${completedRounds.length} interview(s).
-
-ANALYST A SCORES:
-${JSON.stringify(geminiResult, null, 2)}
-
-ANALYST B SCORES:
-${JSON.stringify(openaiResult, null, 2)}
-
-Synthesize both analyses into ONE definitive, balanced report. Average the numerical scores, merge the strengths/weaknesses, and provide a consensus verdict.
-
-Return ONLY valid JSON in this format:
-{
-  "overallScore": <averaged number 0-100>,
-  "technicalScore": <averaged number 0-100 or null>,
-  "communicationScore": <averaged number 0-100>,
-  "problemSolvingScore": <averaged number 0-100>,
-  "cultureFitScore": <averaged number 0-100 or null>,
-  "confidenceScore": <averaged number 0-100>,
-  "topStrengths": ["merged strength1", "merged strength2", "merged strength3"],
-  "criticalWeaknesses": ["merged weakness1", "merged weakness2", "merged weakness3"],
-  "improvementPlan": ["merged action1", "merged action2", "merged action3"],
-  "overallVerdict": "consensus verdict",
-  "narrativeSummary": "synthesized 2-3 sentence executive summary",
-  "evaluationMethod": "Multi-AI Consensus (Gemini + OpenAI + Cohere)"
-}
-
-Return ONLY the JSON object. No markdown, no code blocks.`;
-
-        const cohereRaw = await callCohere(synthesisPrompt);
-        if (cohereRaw) {
-          finalInsights = JSON.parse(
-            cohereRaw
-              .replace(/```json\n?/g, "")
-              .replace(/```\n?/g, "")
-              .trim(),
-          );
-          finalInsights.evaluationMethod =
-            "Multi-AI Consensus (Gemini + OpenAI + Cohere)";
-          console.log("Cohere synthesis complete.");
+      for (const round of (space.interviewRounds || [])) {
+        // ── Non-completed rounds: add as-is, no AI needed ──
+        if (round.status !== "completed") {
+          spaceResult.rounds.push({
+            roundName:  round.name,
+            status:     round.status,
+            aiInsights: null,
+            cached:     false,
+          });
+          continue;
         }
-      } catch (e) {
-        console.error("Cohere synthesis error:", e.message);
+
+        // ── Completed round with cached insights → return instantly ──
+        if (round.aiInsights && round.aiInsights.generatedAt) {
+          console.log(`[PERF API] ⚡ Cache hit: ${space.companyName} → ${round.name}`);
+          cachedCount++;
+          spaceResult.rounds.push({
+            roundName:  round.name,
+            status:     round.status,
+            aiInsights: round.aiInsights,
+            cached:     true,
+          });
+          continue;
+        }
+
+        // ── Completed round, no cache → run 3-stage pipeline ──
+        console.log(`[PERF API] 🔄 Running pipeline: ${space.companyName} → ${round.name}`);
+        newAnalysisCount++;
+
+        // Fetch actual Q&A records for this specific round
+        const qas = await QuestionAnswer.find({
+          spaceId:   space._id,
+          roundName: round.name,
+        }).sort({ createdAt: 1 });
+
+        if (!qas.length && !round.summary) {
+          // No transcript and no summary — skip this round
+          console.warn(`[PERF API] No data for ${space.companyName} → ${round.name}. Skipping.`);
+          spaceResult.rounds.push({
+            roundName: round.name,
+            status:    round.status,
+            aiInsights: null,
+            cached:    false,
+            error:     "No Q&A data found for this round.",
+          });
+          continue;
+        }
+
+        try {
+          const insights = await generateRoundInsights(
+            round.name,
+            space.experienceLevel || "fresher",
+            qas.map(q => ({ question: q.question, answer: q.answer || "" })),
+            round.summary || ""
+          );
+
+          // Persist to DB — never run again for this round
+          round.aiInsights = insights;
+          await space.save();
+
+          spaceResult.rounds.push({
+            roundName:  round.name,
+            status:     round.status,
+            aiInsights: insights,
+            cached:     false,
+          });
+        } catch (err) {
+          console.error(`[PERF API] Pipeline error for ${space.companyName} → ${round.name}:`, err.message);
+          spaceResult.rounds.push({
+            roundName:  round.name,
+            status:     round.status,
+            aiInsights: null,
+            cached:     false,
+            error:      "Analysis failed — please try again.",
+          });
+        }
       }
 
-      // Fallback: manual average
-      if (!finalInsights) {
-        const avg = (a, b) =>
-          a !== null && b !== null ? Math.round((a + b) / 2) : a || b;
-        finalInsights = {
-          overallScore: avg(
-            geminiResult.overallScore,
-            openaiResult.overallScore,
-          ),
-          technicalScore: avg(
-            geminiResult.technicalScore,
-            openaiResult.technicalScore,
-          ),
-          communicationScore: avg(
-            geminiResult.communicationScore,
-            openaiResult.communicationScore,
-          ),
-          problemSolvingScore: avg(
-            geminiResult.problemSolvingScore,
-            openaiResult.problemSolvingScore,
-          ),
-          cultureFitScore: avg(
-            geminiResult.cultureFitScore,
-            openaiResult.cultureFitScore,
-          ),
-          confidenceScore: avg(
-            geminiResult.confidenceScore,
-            openaiResult.confidenceScore,
-          ),
-          topStrengths: [
-            ...new Set([
-              ...(geminiResult.topStrengths || []),
-              ...(openaiResult.topStrengths || []),
-            ]),
-          ].slice(0, 4),
-          criticalWeaknesses: [
-            ...new Set([
-              ...(geminiResult.criticalWeaknesses || []),
-              ...(openaiResult.criticalWeaknesses || []),
-            ]),
-          ].slice(0, 4),
-          improvementPlan: [
-            ...new Set([
-              ...(geminiResult.improvementPlan || []),
-              ...(openaiResult.improvementPlan || []),
-            ]),
-          ].slice(0, 4),
-          overallVerdict:
-            geminiResult.overallVerdict || openaiResult.overallVerdict,
-          narrativeSummary:
-            geminiResult.narrativeSummary || openaiResult.narrativeSummary,
-          evaluationMethod: "Dual-AI Analysis (Gemini + OpenAI)",
-        };
-      }
-    } else if (geminiResult) {
-      finalInsights = {
-        ...geminiResult,
-        evaluationMethod: "Single-AI Analysis (Gemini)",
-      };
-    } else if (openaiResult) {
-      finalInsights = {
-        ...openaiResult,
-        evaluationMethod: "Single-AI Analysis (OpenAI)",
-      };
-    } else {
-      return res.json({
-        success: false,
-        message: "AI analysis failed. Please try again.",
-      });
+      // Per-space aggregate (from this space's rounds only — no mixing)
+      const scoredRounds = spaceResult.rounds.filter(r => r.aiInsights?.overallScore != null);
+      spaceResult.avgScore = scoredRounds.length > 0
+        ? Math.round(scoredRounds.reduce((s, r) => s + r.aiInsights.overallScore, 0) / scoredRounds.length)
+        : null;
+      // Final verdict = verdict of the last completed round
+      const lastScored = scoredRounds[scoredRounds.length - 1];
+      spaceResult.overallVerdict = lastScored?.aiInsights?.overallVerdict || null;
+
+      perSpaceInsights.push(spaceResult);
     }
 
-    res.json({ success: true, insights: finalInsights });
+    // Global stats (for the header stat cards — still individual, but aggregated for display)
+    const allScoredRounds = perSpaceInsights.flatMap(s =>
+      s.rounds.filter(r => r.aiInsights?.overallScore != null)
+    );
+    const globalAvgScore = allScoredRounds.length > 0
+      ? Math.round(allScoredRounds.reduce((s, r) => s + r.aiInsights.overallScore, 0) / allScoredRounds.length)
+      : null;
+
+    console.log(`[PERF API] Done — cached: ${cachedCount}, new: ${newAnalysisCount}, total rounds: ${allScoredRounds.length}`);
+
+    res.json({
+      success: true,
+      perSpaceInsights,
+      globalStats: {
+        avgScore:            globalAvgScore,
+        totalCompletedRounds:allScoredRounds.length,
+        totalSpaces:         spaces.length,
+        cachedRounds:        cachedCount,
+        newAnalysisRun:      newAnalysisCount,
+        healthStatus:        getHealthStatus(),
+      },
+    });
   } catch (err) {
-    console.error("Error generating performance insights:", err);
-    res
-      .status(500)
-      .json({ success: false, error: "Error generating insights." });
+    console.error("[PERF API] Fatal error:", err);
+    res.status(500).json({ success: false, error: "Error generating insights. Please try again." });
   }
 });
 

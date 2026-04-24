@@ -1,7 +1,7 @@
 // controllers/interviewController.js
 const QuestionAnswer = require("../models/questionAnswerModel");
 const Space = require("../models/spaceModel");
-const { callGemini, callOpenAI, callCohere } = require("../config/aiServices");
+const { callGemini, callOpenAI, callCohere, generateInterviewQuestion, TOTAL_QUESTIONS } = require("../config/aiServices");
 
 // =====================================================
 // Round-Specific Interview Guidelines by Experience Level
@@ -33,7 +33,7 @@ const ROUND_GUIDELINES = {
   },
 };
 
-const MAX_QUESTIONS = { fresher: 10, intermediate: 12, experienced: 15 };
+// All rounds use exactly TOTAL_QUESTIONS (10) — consistent, balanced, quota-friendly
 
 function getRoundGuidelines(roundName, level) {
   const safeLevel = level || "fresher";
@@ -54,7 +54,6 @@ exports.startRound = async (req, res) => {
     if (!space) return res.status(404).json({ error: "Space not found" });
 
     const level = space.experienceLevel || "fresher";
-    const total = MAX_QUESTIONS[level] || 12;
     const guidelines = getRoundGuidelines(roundName, level);
 
     const prompt = `You are an expert interviewer at "${space.companyName}" conducting a "${roundName}" interview round.
@@ -68,21 +67,20 @@ CANDIDATE PROFILE:
 ROUND GUIDELINES (${level}):
 ${guidelines}
 
-Start the interview with an appropriate opening question for this "${roundName}" round.
+This is a WARM-UP opening question (Q1 of ${TOTAL_QUESTIONS}). Start with an easy, rapport-building introduction relevant to the round.
 
 STRICT RULES:
 - Ask exactly ONE question
-- The question MUST be specific to "${roundName}" — absolutely NO questions from other round types
-- Calibrate difficulty for a ${level} candidate
-- Make the question relevant to the candidate's resume and the job role
-- Return ONLY the question text — no numbering, no "Q:", no prefix, no explanation, no quotes`;
+- MUST stay within "${roundName}" scope — no crossing round types
+- Calibrate for ${level} level
+- Return ONLY the question text — no numbering, no prefix, no quotes`;
 
-    const question = await callGemini(prompt);
+    const question = await generateInterviewQuestion(prompt, 1);
 
     res.json({
       question,
       questionNumber: 1,
-      totalQuestions: total,
+      totalQuestions: TOTAL_QUESTIONS,
       done: false,
     });
   } catch (err) {
@@ -102,9 +100,8 @@ exports.nextQuestion = async (req, res) => {
     if (!space) return res.status(404).json({ error: "Space not found" });
 
     const level = space.experienceLevel || "fresher";
-    const total = MAX_QUESTIONS[level] || 12;
 
-    if (currentQuestionNumber > total) {
+    if (currentQuestionNumber > TOTAL_QUESTIONS) {
       return res.json({ done: true });
     }
 
@@ -112,26 +109,24 @@ exports.nextQuestion = async (req, res) => {
 
     // Build conversation history text
     const historyText = conversationHistory
-      .map(
-        (item, i) =>
-          `Q${i + 1}: ${item.question}\nA${i + 1}: ${item.answer || "(No answer provided)"}`
-      )
+      .map((item, i) => `Q${i + 1}: ${item.question}\nA${i + 1}: ${item.answer || "(No answer provided)"}`)
       .join("\n\n");
 
-    // Determine interview phase
-    let phase = "";
-    if (currentQuestionNumber <= 3) {
-      phase =
-        "PHASE: Warm-up. Ask foundational, rapport-building questions for this round.";
-    } else if (currentQuestionNumber <= total - 2) {
-      phase = `PHASE: Core. Ask challenging, in-depth questions. Analyze previous answers:
-- Weak/vague answer → probe deeper on that topic, ask for specifics or examples
-- Strong answer → progress to harder topics or explore new areas
-- Mentioned a specific technology/project → ask detailed follow-up about it
-- Make the conversation flow naturally like a real interviewer would`;
+    // Adaptive phase instruction based on question number (fixed 10-Q scale)
+    let phase;
+    if (currentQuestionNumber <= 4) {
+      phase = "PHASE: WARM-UP (Q1–Q4) — Ask foundational questions. Build rapport. Keep it accessible.";
+    } else if (currentQuestionNumber <= 8) {
+      phase = `PHASE: CORE DEPTH (Q5–Q8) — Ask challenging, in-depth questions. Analyse previous answers:
+- Vague/weak answer → probe deeper, ask for a specific example or evidence
+- Strong answer → escalate difficulty, explore new areas
+- Candidate mentioned a technology/project → ask detailed follow-up on it
+- Make it flow naturally like a real senior interviewer`;
     } else {
-      phase =
-        "PHASE: Closing. Ask reflective or wrap-up questions appropriate for this round type.";
+      phase = `PHASE: CLOSING (Q9–Q10) — Ask the most important reflective and high-impact closing questions.
+- Push for genuine insight: lessons learned, biggest challenges, real growth
+- Make these questions memorable and revealing
+- These MUST be the sharpest, most thoughtful questions of the entire interview`;
     }
 
     const prompt = `You are an expert interviewer at "${space.companyName}" conducting a "${roundName}" interview round.
@@ -149,23 +144,22 @@ ${historyText}
 
 ${phase}
 
-This is question ${currentQuestionNumber} of ${total}.
+This is question ${currentQuestionNumber} of ${TOTAL_QUESTIONS}.
 
 STRICT RULES:
 - Ask exactly ONE question
-- MUST stay within "${roundName}" round scope — do NOT cross into other round types
-- Carefully analyze ALL previous answers before generating the next question. If the candidate's previous answer was VAGUE or INCORRECT, ask a follow-up to clarify or correct them.
-- Do NOT repeat topics already covered in the conversation
-- The question should feel like a natural continuation of the conversation
-- Calibrate for ${level} level. For experienced candidates, ask about trade-offs, architecture, and "why" not just "how".
-- Return ONLY the question text — no numbering, no prefix, no explanation, no quotes`;
+- MUST stay within "${roundName}" round scope — never cross into other round types
+- Read ALL previous answers. If any was vague or incorrect, probe it specifically.
+- Do NOT repeat topics already fully covered
+- Question must feel like a natural, intelligent continuation of the conversation
+- Return ONLY the question text — no numbering, no prefix, no quotes`;
 
-    const question = await callGemini(prompt);
+    const question = await generateInterviewQuestion(prompt, currentQuestionNumber);
 
     res.json({
       question,
       questionNumber: currentQuestionNumber,
-      totalQuestions: total,
+      totalQuestions: TOTAL_QUESTIONS,
       done: false,
     });
   } catch (err) {
@@ -250,11 +244,11 @@ Be strict. A 7/10 is a high bar. Average candidates get 5-6.`;
       console.error("OpenAI evaluation failed:", e);
     }
 
-    // ---- STEP 3: Cohere synthesizes the final summary ----
+    // ---- STEP 3: Gemini synthesizes the final summary ----
     let finalSummary;
 
     if (geminiEval && openaiEval) {
-      console.log("Synthesizing with Cohere...");
+      console.log("Synthesizing final summary with Gemini...");
       const synthesisPrompt = `You are a Chief Talent Officer.
 
 Your goal is to synthesize two independent evaluations into ONE definitive, high-accuracy report.
@@ -296,15 +290,15 @@ OUTPUT FORMAT (Markdown):
 ## 🚀 Recommendation
 (Hire / No Hire / Strong Hire)
 
-*Evaluation generated using Multi-AI Consensus (Gemini + OpenAI + Cohere)*`;
+*Evaluation generated using Multi-AI Consensus (Evaluators: Gemini + OpenAI, Synthesizer: Gemini)*`;
 
-      const cohereResult = await callCohere(synthesisPrompt);
+      const summaryResult = await callGemini(synthesisPrompt, "summary");
       
-      if (cohereResult) {
-        finalSummary = cohereResult;
-        console.log("Cohere synthesis complete.");
+      if (summaryResult) {
+        finalSummary = summaryResult;
+        console.log("Gemini synthesis complete.");
       } else {
-        finalSummary = `## Evaluator 1 Assessment\n\n${geminiEval}\n\n---\n\n## Evaluator 2 Assessment\n\n${openaiEval}\n\n*(Cohere synthesis unavailable)*`;
+        finalSummary = `## Evaluator 1 Assessment\n\n${geminiEval}\n\n---\n\n## Evaluator 2 Assessment\n\n${openaiEval}\n\n*(Gemini synthesis unavailable)*`;
       }
     } else if (geminiEval) {
       finalSummary = geminiEval + "\n\n*(Single-AI Evaluation: High-Accuracy Mode)*";
