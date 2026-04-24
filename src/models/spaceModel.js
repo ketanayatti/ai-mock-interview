@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
-// Schema for interview rounds
 const interviewRoundSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // Name of the interview round (e.g., HR, Technical)
-  status: { type: String, default: 'not completed' }, // Status of the interview round
-  summary: { type: String, default: '' }, // Summary of the round (if completed)
+  name:       { type: String, required: true },
+  status:     { type: String, default: 'not completed' },
+  summary:    { type: String, default: '' },
+  // Cached output from 3-stage AI pipeline — set once, reused forever
+  aiInsights: { type: mongoose.Schema.Types.Mixed, default: null },
 });
 
 // Schema for the space (company)

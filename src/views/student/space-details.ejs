@@ -242,28 +242,31 @@
             </div>
           </div>
           <!-- Resume Summary Preview -->
-          <% if (space.purifiedSummary && space.purifiedSummary.length> 0) { %>
+          <% if (space.purifiedSummary && space.purifiedSummary.length > 0) { %>
             <div class="mt-6 p-4 flex items-center justify-between"
-              style="background: var(--bg-color); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              style="background:var(--bg-color);border-radius:var(--radius-sm);border:1px solid var(--border-color);">
               <div class="flex items-center gap-3">
-                <i class="fas fa-file-alt" style="color: var(--text-tertiary);"></i>
+                <div style="width:36px;height:36px;background:var(--accent-subtle);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--accent-color);font-size:14px;flex-shrink:0;">
+                  <i class="fas fa-file-user"></i>
+                </div>
                 <div>
-                  <p class="text-sm font-medium">Resume Summary</p>
-                  <p class="text-xs" style="color: var(--text-tertiary);"><%- space.purifiedSummary.substring(0, 120)
-                      + '...' %>
-                  </p>
+                  <p class="text-sm font-semibold" style="color:var(--text-primary);">Resume Intelligence Summary</p>
+                  <p class="text-xs" style="color:var(--text-tertiary);margin-top:2px;">AI-distilled profile for interview context</p>
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <button id="viewFullSummaryBtn" class="btn btn-secondary btn-sm">View Summary</button>
+                <button id="viewFullSummaryBtn" class="btn btn-secondary btn-sm">
+                  <i class="fas fa-eye" style="font-size:11px;"></i> View Summary
+                </button>
                 <% if (space.resumePath) { %>
                   <a href="/space/resume/download/<%= space._id %>" class="btn btn-outline btn-sm">
-                    <i class="fas fa-download"></i> Download
+                    <i class="fas fa-download" style="font-size:11px;"></i> Resume
                   </a>
-                  <% } %>
+                <% } %>
               </div>
             </div>
-            <% } else if (space.resumePath) { %>
+          <% } else if (space.resumePath) { %>
+
               <div class="mt-6 p-4 flex items-center justify-between"
                 style="background: var(--bg-color); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
                 <div class="flex items-center gap-3">
@@ -510,41 +513,48 @@
     </main>
 
     <!-- ═══════════════════════════════════════
-                                                           Resume Summary Modal
-                                                           ═══════════════════════════════════════ -->
+                         Resume Summary Modal — Premium Dark
+         ═══════════════════════════════════════ -->
     <div id="resumeSummaryModal" class="modal-backdrop">
-      <div class="modal-window">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-3">
-            <div class="feature-icon" style="margin-bottom: 0; width: 40px; height: 40px; font-size: 16px;">
-              <i class="fas fa-file-alt"></i>
+      <div class="modal-window" style="background:linear-gradient(145deg,#111113,#18181b);border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 60px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.1);color:#F5F5F7;border-radius:20px;overflow:hidden;max-width:680px;">
+
+        <!-- Modal header -->
+        <div style="background:linear-gradient(90deg,rgba(0,113,227,0.12),transparent);border-bottom:1px solid rgba(255,255,255,0.07);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(0,113,227,0.18);border:1px solid rgba(0,113,227,0.3);display:flex;align-items:center;justify-content:center;color:#5AC8FA;font-size:17px;">
+              <i class="fas fa-id-card-clip"></i>
             </div>
-            <h3 class="mb-0">Resume Summary</h3>
+            <div>
+              <h3 style="color:#fff;font-weight:700;font-size:17px;letter-spacing:-0.02em;margin:0;">Resume Intelligence</h3>
+              <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:3px 0 0;">AI-distilled professional profile</p>
+            </div>
           </div>
-          <button class="modal-close btn-icon" style="background: rgba(0,0,0,0.05); border-radius: 50%;">
+          <button class="modal-close btn-icon" style="border-radius:50%;background:rgba(255,255,255,0.06);color:#fff;transition:all 0.25s;">
             <i class="fas fa-times"></i>
           </button>
         </div>
 
-        <div class="modal-body-scroll text-sm leading-relaxed mb-6" style="color: var(--text-secondary);">
-          <% if (space.purifiedSummary && space.purifiedSummary.length> 0) { %>
+        <!-- Body -->
+        <div class="modal-body-scroll" style="max-height:60vh;overflow-y:auto;padding:20px 24px;">
+          <% if (space.purifiedSummary && space.purifiedSummary.length > 0) { %>
             <%- space.purifiedSummary %>
-              <% } else { %>
-                <div class="text-center py-8">
-                  <i class="fas fa-file-alt text-3xl mb-3" style="color: var(--text-quaternary);"></i>
-                  <p style="color: var(--text-tertiary);">No resume summary available.</p>
-                  <ul class="text-sm mt-3"
-                    style="color: var(--text-tertiary); list-style: disc; display: inline-block; text-align: left;">
-                    <li>The resume couldn't be parsed correctly</li>
-                    <li>The summary generation is still in progress</li>
-                    <li>There was an issue with the AI service</li>
-                  </ul>
-                </div>
-                <% } %>
+          <% } else { %>
+            <div style="text-align:center;padding:40px 0;">
+              <i class="fas fa-file-slash" style="font-size:36px;color:rgba(255,255,255,0.12);margin-bottom:16px;display:block;"></i>
+              <p style="color:rgba(255,255,255,0.35);">No resume summary available.</p>
+              <p style="color:rgba(255,255,255,0.2);font-size:12px;margin-top:6px;">The summary may still be generating or there was an AI error.</p>
+            </div>
+          <% } %>
         </div>
 
-        <div class="flex justify-end pt-4 border-t">
-          <button class="modal-close btn btn-secondary">Close</button>
+        <!-- Footer -->
+        <div style="padding:14px 24px;border-top:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.2);display:flex;justify-content:flex-end;gap:10px;">
+          <% if (space.resumePath) { %>
+            <a href="/space/resume/download/<%= space._id %>" class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);">
+              <i class="fas fa-download" style="font-size:11px;"></i> Download Resume
+            </a>
+          <% } %>
+          <button class="modal-close btn btn-sm" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);">Close</button>
         </div>
       </div>
     </div>
