@@ -27,21 +27,21 @@ The platform achieves zero-downtime deployments via Blue-Green strategy, maintai
 
 ![Tech Stack](https://skillicons.dev/icons?i=nodejs,express,mongodb,javascript,docker,nginx,git,github&theme=dark)
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| **Runtime** | Node.js | 20 LTS | Lightweight containerization |
-| **Framework** | Express.js | 4.21.2 | HTTP routing & middleware |
-| **Database** | MongoDB | 8.8.4 | Session & interview data persistence |
-| **Session Mgmt** | cookie-session | 2.1.0 | Client-side encrypted storage (30-day TTL) |
-| **Template Engine** | EJS | 3.1.10 | Server-side rendering |
-| **AI Orchestration** | @google/genai, openai, cohere-ai | 1.41 / 4.77 / 7.14 | Multi-provider LLM fallback |
-| **File Upload** | multer | 1.4.5 | Resume upload (10MB max, PDF/DOCX) |
-| **Document Parsing** | mammoth, pdf-parse | 1.8 / 1.1.1 | Resume text extraction |
-| **Security** | dompurify | 3.2.3 | XSS prevention |
-| **Rate Limiting** | express-rate-limit | 7.5.0 | DDoS mitigation & quota enforcement |
-| **Containerization** | Docker | 20-alpine | Multi-stage builds |
-| **Reverse Proxy** | Nginx | 1.18+ | Load balancing & Blue-Green switching |
-| **CI/CD** | Jenkins | Declarative Pipeline | Automated build, test, deploy |
+| Layer                | Technology                       | Version              | Purpose                                    |
+| -------------------- | -------------------------------- | -------------------- | ------------------------------------------ |
+| **Runtime**          | Node.js                          | 20 LTS               | Lightweight containerization               |
+| **Framework**        | Express.js                       | 4.21.2               | HTTP routing & middleware                  |
+| **Database**         | MongoDB                          | 8.8.4                | Session & interview data persistence       |
+| **Session Mgmt**     | cookie-session                   | 2.1.0                | Client-side encrypted storage (30-day TTL) |
+| **Template Engine**  | EJS                              | 3.1.10               | Server-side rendering                      |
+| **AI Orchestration** | @google/genai, openai, cohere-ai | 1.41 / 4.77 / 7.14   | Multi-provider LLM fallback                |
+| **File Upload**      | multer                           | 1.4.5                | Resume upload (10MB max, PDF/DOCX)         |
+| **Document Parsing** | mammoth, pdf-parse               | 1.8 / 1.1.1          | Resume text extraction                     |
+| **Security**         | dompurify                        | 3.2.3                | XSS prevention                             |
+| **Rate Limiting**    | express-rate-limit               | 7.5.0                | DDoS mitigation & quota enforcement        |
+| **Containerization** | Docker                           | 20-alpine            | Multi-stage builds                         |
+| **Reverse Proxy**    | Nginx                            | 1.18+                | Load balancing & Blue-Green switching      |
+| **CI/CD**            | Jenkins                          | Declarative Pipeline | Automated build, test, deploy              |
 
 ---
 
@@ -52,26 +52,26 @@ graph TD
     subgraph "Client Layer"
         WEB["🌐 Web Browser<br/>Cookie Sessions"]
     end
-    
+
     subgraph "Load Balancing"
         NGINX["Nginx Reverse Proxy<br/>Port 80/443"]
     end
-    
+
     subgraph "Application Tier"
         SLOT_A["🟦 App Slot A<br/>Port 3000<br/>Node.js Express"]
         SLOT_B["🟩 App Slot B<br/>Port 3001<br/>Node.js Express"]
     end
-    
+
     subgraph "Data Layer"
         MONGO["🍃 MongoDB<br/>Sessions & Interview Data"]
     end
-    
+
     subgraph "AI Orchestration"
         GEMINI["🔷 Gemini<br/>Primary"]
         OPENAI["⚫ OpenAI<br/>Fallback 1"]
         COHERE["🟠 Cohere<br/>Fallback 2"]
     end
-    
+
     WEB -->|Routes via Nginx| NGINX
     NGINX -->|Active Traffic| SLOT_A
     NGINX -->|Pre-warmed| SLOT_B
@@ -133,16 +133,16 @@ npm run dev
 
 ### Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PORT` | ✓ | 3000 | Application port |
-| `SESSION_SECRET` | ✓ | — | Cookie encryption key (32+ chars) |
-| `NODE_ENV` | ✓ | production | Controls secure cookie flag |
-| `MONGO_URI` | ✓ | — | MongoDB Atlas connection string |
-| `GEMINI_API_KEY` | ✓ | — | Google Gemini API key (startup required) |
-| `OPENAI_API_KEY` | — | — | OpenAI API key (fallback; graceful if missing) |
-| `COHERE_API_KEY` | — | — | Cohere v2 API key (fallback; graceful if missing) |
-| `COHERE_API_KEY_2` | — | — | Secondary Cohere key (enables dual instances) |
+| Variable           | Required | Default    | Description                                       |
+| ------------------ | -------- | ---------- | ------------------------------------------------- |
+| `PORT`             | ✓        | 3000       | Application port                                  |
+| `SESSION_SECRET`   | ✓        | —          | Cookie encryption key (32+ chars)                 |
+| `NODE_ENV`         | ✓        | production | Controls secure cookie flag                       |
+| `MONGO_URI`        | ✓        | —          | MongoDB Atlas connection string                   |
+| `GEMINI_API_KEY`   | ✓        | —          | Google Gemini API key (startup required)          |
+| `OPENAI_API_KEY`   | —        | —          | OpenAI API key (fallback; graceful if missing)    |
+| `COHERE_API_KEY`   | —        | —          | Cohere v2 API key (fallback; graceful if missing) |
+| `COHERE_API_KEY_2` | —        | —          | Secondary Cohere key (enables dual instances)     |
 
 ### Docker Deployment
 
@@ -185,14 +185,14 @@ npm audit --audit-level=moderate
 
 All endpoints require an active session cookie (302 redirect to `/` if missing).
 
-| Method | Endpoint | Purpose | Rate Limit |
-|--------|----------|---------|-----------|
-| `GET` | `/` | Welcome page & session init | None |
-| `POST` | `/session/create` | New interview session | 5/hour |
-| `POST` | `/interview/start` | Begin interview round | 50/hour |
-| `POST` | `/interview/answer` | Submit candidate response | 50/hour |
-| `GET` | `/interview/feedback` | Retrieve evaluation | 100/15min |
-| `GET` | `/health` | Liveness probe | None |
+| Method | Endpoint              | Purpose                     | Rate Limit |
+| ------ | --------------------- | --------------------------- | ---------- |
+| `GET`  | `/`                   | Welcome page & session init | None       |
+| `POST` | `/session/create`     | New interview session       | 5/hour     |
+| `POST` | `/interview/start`    | Begin interview round       | 50/hour    |
+| `POST` | `/interview/answer`   | Submit candidate response   | 50/hour    |
+| `GET`  | `/interview/feedback` | Retrieve evaluation         | 100/15min  |
+| `GET`  | `/health`             | Liveness probe              | None       |
 
 ### Health Check
 
@@ -201,6 +201,7 @@ curl http://localhost:3000/health
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "status": "ready",
@@ -229,6 +230,7 @@ The Jenkins pipeline orchestrates **7 stages** from code checkout through zero-d
 ```
 
 **Pipeline Metrics:**
+
 - Average build time: 4–5 minutes
 - Average deployment: 3–8 minutes (including health check)
 - Build success rate: 98%
@@ -241,12 +243,12 @@ The Jenkins pipeline orchestrates **7 stages** from code checkout through zero-d
 
 #### Credentials Required
 
-| ID | Type | Usage |
-|---|---|---|
-| `docker-credentials` | Username/Password | Docker Hub login |
-| `ec2-ssh-key` | SSH Private Key | EC2 deployment |
-| `mongo-uri` | Secret Text | MongoDB connection |
-| `gemini-api-key` | Secret Text | Gemini API |
+| ID                   | Type              | Usage              |
+| -------------------- | ----------------- | ------------------ |
+| `docker-credentials` | Username/Password | Docker Hub login   |
+| `ec2-ssh-key`        | SSH Private Key   | EC2 deployment     |
+| `mongo-uri`          | Secret Text       | MongoDB connection |
+| `gemini-api-key`     | Secret Text       | Gemini API         |
 
 #### Stage Details
 
@@ -265,17 +267,20 @@ The Jenkins pipeline orchestrates **7 stages** from code checkout through zero-d
 ### Production Infrastructure
 
 **Compute:** EC2 t3.medium (AWS Asia Pacific Sydney, `13.220.61.216`)
+
 - 2 vCPU (burstable), 4GB RAM, 20GB gp3 EBS
 - Ubuntu 20.04 LTS or later
 - Docker daemon + Nginx installed
 
 **Database:** MongoDB Atlas (managed service)
+
 - M10+ cluster (shared-tier not suitable for production)
 - 3-node replica set with automatic failover
 - IP whitelisting for EC2 security group
 - Connection pool size: 10 (Mongoose default)
 
 **Networking:**
+
 - Security group ingress: 80 (HTTP), 22 (SSH for Jenkins only)
 - Egress: 443 (HTTPS for AI APIs), 27017 (MongoDB)
 

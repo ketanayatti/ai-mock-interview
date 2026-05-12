@@ -38,26 +38,26 @@ graph TD
     subgraph "Client Layer"
         WEB["Web Browser<br/>Cookie Sessions"]
     end
-    
+
     subgraph "Load Balancing & Routing"
         NGINX["Nginx Reverse Proxy<br/>Port 80/443"]
     end
-    
+
     subgraph "Application Tier"
         SLOT_A["App Slot A<br/>Port 3000<br/>Node.js Express"]
         SLOT_B["App Slot B<br/>Port 3001<br/>Node.js Express"]
     end
-    
+
     subgraph "Data Persistence"
         MONGO["MongoDB<br/>Session Storage<br/>Interview Data"]
     end
-    
+
     subgraph "AI Service Orchestration"
         GEMINI["Google Gemini<br/>Primary LLM"]
         OPENAI["OpenAI GPT<br/>Fallback 1"]
         COHERE["Cohere v2<br/>Fallback 2"]
     end
-    
+
     WEB -->|"Routes via Nginx"| NGINX
     NGINX -->|"Forwards to Active Slot"| SLOT_A
     NGINX -->|"Routes to Idle Slot"| SLOT_B
@@ -78,24 +78,24 @@ graph TD
 
 ## Technology Stack
 
-| Layer | Component | Version | Purpose |
-|-------|-----------|---------|---------|
-| **Runtime** | Node.js | 20-alpine | Lightweight containerization; LTS support through 2026 |
-| **Framework** | Express.js | 4.21.2 | HTTP routing, middleware orchestration, health endpoints |
-| **Session Management** | cookie-session | 2.1.0 | Client-side encrypted session storage (30-day TTL) |
-| **View Engine** | EJS | 3.1.10 | Server-side templating with layout inheritance |
-| **Database Driver** | Mongoose | 8.8.4 | MongoDB ODM with schema validation and connection pooling |
-| **AI Service 1** | @google/genai | 1.41.0 | Gemini API client; primary LLM provider |
-| **AI Service 2** | openai | 4.77.0 | GPT fallback; conditional initialization |
-| **AI Service 3** | cohere-ai | 7.14.0 | Dual Cohere instances (Q1-Q4 / Q5-Q8 splits) |
-| **Rate Limiting** | express-rate-limit | 7.5.0 | Per-IP request throttling; admin exemption support |
-| **File Handling** | multer | 1.4.5-lts.1 | Resume upload with 10MB file size limits |
-| **Document Parsing** | mammoth | 1.8.0 | DOCX → HTML conversion |
-| **PDF Parsing** | pdf-parse | 1.1.1 | PDF text extraction |
-| **Security** | dompurify | 3.2.3 | XSS prevention in parsed resume content |
-| **Containerization** | Docker | 20-alpine | Multi-stage builds; dumb-init signal handling |
-| **CI/CD** | Jenkins | Declarative Pipeline | Groovy-based pipeline orchestration |
-| **SSH/SCP** | OpenSSH | Native | Deployment artifact transfer to EC2 |
+| Layer                  | Component          | Version              | Purpose                                                   |
+| ---------------------- | ------------------ | -------------------- | --------------------------------------------------------- |
+| **Runtime**            | Node.js            | 20-alpine            | Lightweight containerization; LTS support through 2026    |
+| **Framework**          | Express.js         | 4.21.2               | HTTP routing, middleware orchestration, health endpoints  |
+| **Session Management** | cookie-session     | 2.1.0                | Client-side encrypted session storage (30-day TTL)        |
+| **View Engine**        | EJS                | 3.1.10               | Server-side templating with layout inheritance            |
+| **Database Driver**    | Mongoose           | 8.8.4                | MongoDB ODM with schema validation and connection pooling |
+| **AI Service 1**       | @google/genai      | 1.41.0               | Gemini API client; primary LLM provider                   |
+| **AI Service 2**       | openai             | 4.77.0               | GPT fallback; conditional initialization                  |
+| **AI Service 3**       | cohere-ai          | 7.14.0               | Dual Cohere instances (Q1-Q4 / Q5-Q8 splits)              |
+| **Rate Limiting**      | express-rate-limit | 7.5.0                | Per-IP request throttling; admin exemption support        |
+| **File Handling**      | multer             | 1.4.5-lts.1          | Resume upload with 10MB file size limits                  |
+| **Document Parsing**   | mammoth            | 1.8.0                | DOCX → HTML conversion                                    |
+| **PDF Parsing**        | pdf-parse          | 1.1.1                | PDF text extraction                                       |
+| **Security**           | dompurify          | 3.2.3                | XSS prevention in parsed resume content                   |
+| **Containerization**   | Docker             | 20-alpine            | Multi-stage builds; dumb-init signal handling             |
+| **CI/CD**              | Jenkins            | Declarative Pipeline | Groovy-based pipeline orchestration                       |
+| **SSH/SCP**            | OpenSSH            | Native               | Deployment artifact transfer to EC2                       |
 
 ---
 
@@ -188,12 +188,14 @@ flowchart TD
 ### Pipeline Stages
 
 #### Stage 1: Checkout
+
 Clones the SCM repository at the commit SHA. Uses default Jenkins checkout plugin with no custom parameters.
 
 **Duration:** ~10–30 seconds  
 **Failure mode:** Repository unreachable or credentials invalid → pipeline terminates
 
 #### Stage 2: Build & Test
+
 Installs dependencies using `npm ci` (clean install, respects lock file), runs linting and test suites. Both lint and test currently exit with status 0 (no-op); this is a staging layer for future test integration.
 
 **Duration:** ~60–90 seconds (dominated by npm install)  
@@ -201,12 +203,14 @@ Installs dependencies using `npm ci` (clean install, respects lock file), runs l
 **Failure mode:** Non-zero exit code halts pipeline
 
 #### Stage 3: Docker Build
+
 Executes multi-stage Docker build using the repository's `Dockerfile`. Generates two image tags: `latest` (mutable, points to HEAD) and build-number (immutable, e.g., `BUILD_123`). Build output remains local to the Jenkins agent until Stage 4.
 
 **Duration:** ~45–120 seconds (depends on base image cache hit)  
 **Failure mode:** Docker daemon unavailable or build context exceeds disk → pipeline terminates
 
 #### Stage 4: Push Image
+
 **Conditional:** Only runs if the current branch is `main`.
 
 Logs into Docker Hub using Jenkins credential store (`docker-credentials`), pushes both `latest` and build-number tags, then logs out (credentials removed from agent memory).
@@ -216,6 +220,7 @@ Logs into Docker Hub using Jenkins credential store (`docker-credentials`), push
 **Failure mode:** Authentication failure or registry unreachable → deployment skipped, branch merged without artifact in registry
 
 #### Stage 5: Deploy — Idle Slot
+
 **Conditional:** Only runs if the current branch is `main`.
 
 SSH into the EC2 instance (credentials: `ec2-ssh-key` Jenkins keypair). Executes a multi-step remote script:
@@ -232,6 +237,7 @@ SSH into the EC2 instance (credentials: `ec2-ssh-key` Jenkins keypair). Executes
 **Failure mode:** SSH connectivity failure, Docker pull failure, or port binding conflict → deployment aborted, active slot unchanged
 
 #### Stage 6: Health Check — Idle Slot
+
 **Conditional:** Only runs if deploy succeeded; 3-minute timeout.
 
 SSH into EC2, read idle port from state file, polls the idle container's `/health` endpoint (direct localhost bypass, no Nginx routing) up to 12 times with exponential backoff (typically 15-second intervals):
@@ -247,6 +253,7 @@ Expected response: HTTP 200 with `app.getReady() === true`.
 **Timeout policy:** If health check exceeds 3 minutes, pipeline fails; manual intervention required
 
 #### Stage 7: Nginx Switch
+
 **Conditional:** Only runs if health check succeeded.
 
 SSH into EC2, atomically update Nginx configuration to route traffic from old active port to new idle port. Reloads Nginx (no restart):
@@ -309,10 +316,10 @@ If health check fails or production detects anomalies post-deployment:
 
 Environments are defined at the deployment stage via branch mapping:
 
-| Branch | Target Environment | Auto-Deploy |
-|--------|-------------------|-------------|
-| `develop` | (none) | ❌ Build only |
-| `main` | Production (EC2) | ✅ Full pipeline |
+| Branch    | Target Environment | Auto-Deploy      |
+| --------- | ------------------ | ---------------- |
+| `develop` | (none)             | ❌ Build only    |
+| `main`    | Production (EC2)   | ✅ Full pipeline |
 
 ### Artifact Management
 
@@ -326,24 +333,28 @@ Environments are defined at the deployment stage via branch mapping:
 
 ### Compute & Networking
 
-**Primary Host:** EC2 t3.medium (AWS Asia Pacific Sydney, `13.220.61.216`)  
+**Primary Host:** EC2 t3.medium (AWS Asia Pacific Sydney, `13.220.61.216`)
+
 - **vCPU:** 2 (burstable T3)
 - **Memory:** 4 GB
 - **Storage:** 20 GB gp3 EBS (general purpose)
 - **AMI:** Ubuntu 20.04 LTS or later
 
-**Container Runtime:** Docker Engine 20.10+  
+**Container Runtime:** Docker Engine 20.10+
+
 - Daemon runs in rootless mode (security best practice)
 - Systemd service restart policy: `unless-stopped`
 
-**Reverse Proxy:** Nginx 1.18+ (default Ubuntu repos)  
+**Reverse Proxy:** Nginx 1.18+ (default Ubuntu repos)
+
 - Listens on 0.0.0.0:80 (port 80 only; TLS termination assumed upstream)
 - Configuration file: `/etc/nginx/sites-available/default`
 - Dynamic upstream switching via `sed` + `nginx -s reload` (no downtime)
 
 ### Database
 
-**Provider:** MongoDB Atlas (managed service)  
+**Provider:** MongoDB Atlas (managed service)
+
 - **Cluster Tier:** M10 or higher (shared-tier not suitable for production)
 - **Replica Set:** 3-node for high availability and automatic failover
 - **Network Access:** IP whitelisting configured for EC2 security group
@@ -353,27 +364,30 @@ Environments are defined at the deployment stage via branch mapping:
 
 ### Persistent State
 
-| Data | Storage | Retention | Access Pattern |
-|------|---------|-----------|-----------------|
-| User Sessions | MongoDB (sessions collection) | 30 days (cookie expiry) | Read-write (high frequency) |
-| Interview Data | MongoDB (interviews collection) | Indefinite | Read-write (archived per session) |
-| Resume Files | EC2 local disk (`/app/public/Resumes/`) | Session lifetime | Read (parsed on upload) |
-| Container Logs | Docker stdout/stderr | 7 days (Docker daemon default) | Read (debugging only) |
-| Nginx State | EC2 local file (`/tmp/bg-state/`) | Per-deployment | Read (during deployment) |
+| Data           | Storage                                 | Retention                      | Access Pattern                    |
+| -------------- | --------------------------------------- | ------------------------------ | --------------------------------- |
+| User Sessions  | MongoDB (sessions collection)           | 30 days (cookie expiry)        | Read-write (high frequency)       |
+| Interview Data | MongoDB (interviews collection)         | Indefinite                     | Read-write (archived per session) |
+| Resume Files   | EC2 local disk (`/app/public/Resumes/`) | Session lifetime               | Read (parsed on upload)           |
+| Container Logs | Docker stdout/stderr                    | 7 days (Docker daemon default) | Read (debugging only)             |
+| Nginx State    | EC2 local file (`/tmp/bg-state/`)       | Per-deployment                 | Read (during deployment)          |
 
 ### Security Posture
 
 **Network Layer:**
+
 - Security group ingress: 80 (HTTP), 22 (SSH for Jenkins only)
 - Security group egress: 443 (HTTPS to AI APIs), 27017 (MongoDB)
 - EC2 public IP: Restricted to known Jenkins controller IPs via firewall rules (recommended)
 
 **Container Layer:**
+
 - Runs as non-root user (`nodejs:nodejs`)
 - No privileged capabilities
 - dumb-init PID 1 replacement for proper signal handling
 
 **Secrets Management:**
+
 - API keys stored in Jenkins credential store (encrypted at rest, never logged)
 - Passed to containers via environment variables (not in image)
 - Credentials rotate independently of container rebuild
@@ -386,15 +400,15 @@ The application exposes HTTP endpoints for web-based session management and inte
 
 ### Core Endpoints
 
-| Method | Path | Purpose | Rate Limit |
-|--------|------|---------|-----------|
-| `GET` | `/` | Welcome page; session initiation | None |
-| `GET/POST` | `/session/create` | Initiate new interview session | 5/hour (per IP) |
-| `GET` | `/session/:id` | Retrieve session details | 100/15min |
-| `POST` | `/interview/start` | Begin interview round | 50/hour (per IP) |
-| `POST` | `/interview/answer` | Submit candidate response | 50/hour (per IP) |
-| `GET` | `/interview/feedback` | Retrieve evaluation feedback | 100/15min |
-| `GET` | `/health` | Liveness probe (Kubernetes-style) | None |
+| Method     | Path                  | Purpose                           | Rate Limit       |
+| ---------- | --------------------- | --------------------------------- | ---------------- |
+| `GET`      | `/`                   | Welcome page; session initiation  | None             |
+| `GET/POST` | `/session/create`     | Initiate new interview session    | 5/hour (per IP)  |
+| `GET`      | `/session/:id`        | Retrieve session details          | 100/15min        |
+| `POST`     | `/interview/start`    | Begin interview round             | 50/hour (per IP) |
+| `POST`     | `/interview/answer`   | Submit candidate response         | 50/hour (per IP) |
+| `GET`      | `/interview/feedback` | Retrieve evaluation feedback      | 100/15min        |
+| `GET`      | `/health`             | Liveness probe (Kubernetes-style) | None             |
 
 ### Health Check Endpoint
 
@@ -414,6 +428,7 @@ Used during Blue-Green deployment to validate container startup. Returns 200 onl
 ### Session Management
 
 Sessions are stored client-side in encrypted cookies:
+
 - **Cookie name:** `session`
 - **Encryption key:** `SESSION_SECRET` environment variable
 - **Max age:** 30 days (2,592,000 seconds)
@@ -438,16 +453,19 @@ Admin users (identified by `req.session.admin === true`) bypass the global API l
 ### Input Validation & Sanitization
 
 **Resume Upload:**
+
 - File type whitelist: PDF (application/pdf), DOCX (application/vnd.openxmlformats-...)
 - File size limit: 10 MB
 - Filename sanitization: Path traversal characters (`/`, `\`, `:`, null bytes) replaced with `_`
 - Stored filename: Prefixed with timestamp to prevent collisions
 
 **DOM Parsing:**
+
 - Resume text extracted via `mammoth` (DOCX) and `pdf-parse` (PDF) in controlled environment
 - HTML output sanitized with `dompurify` to prevent XSS if content is rendered
 
 **Form Input:**
+
 - Body parser configured with size limits (default 100 KB for JSON)
 - URL-encoded form data validated via Express middleware
 
@@ -542,6 +560,7 @@ healthCache = {
 ```
 
 **Health Status Lifecycle:**
+
 - **Unknown:** Never attempted; provider assumed healthy on first call
 - **Healthy:** Previous call succeeded; subsequent calls use provider
 - **Unhealthy:** Previous call failed; provider skipped for 5 minutes (HEALTH_CACHE_TTL_MS)
@@ -569,6 +588,7 @@ The application is designed to tolerate the failure of any single AI provider fo
 Mongoose connection pool automatically retries up to the `serverSelectionTimeoutMS` (5 seconds). If MongoDB is unavailable at startup, the application exits immediately (fail-fast) rather than degrading in production.
 
 **Startup Sequence:**
+
 ```
 1. app.listen()
 2. connectDB() → attempts MongoDB connection
@@ -580,6 +600,7 @@ Mongoose connection pool automatically retries up to the `serverSelectionTimeout
 ### Graceful Shutdown
 
 Upon receiving `SIGTERM` (Kubernetes termination signal, or Jenkins deployment switch):
+
 ```
 1. app.setReady(false)  — mark unhealthy
 2. Nginx stops routing traffic to this slot (health check fails)
@@ -612,17 +633,20 @@ Admin users bypass global limiter; consider adding IP-based whitelisting in prod
 ### Health Checks
 
 **Application-level:**
+
 - `GET /health` → 200 OK if MongoDB connected and `app.getReady() === true`
 - Used by Jenkins during deployments (Stage 6)
 - Used by Kubernetes liveness probes (if migrated to K8s in future)
 
 **Container-level:**
+
 - Docker health check: Not configured (recommendation: add `HEALTHCHECK` to Dockerfile)
 - Log output: All events logged to stdout/stderr (captured by Docker)
 
 ### Logging
 
 **Application Logs:**
+
 - Logged to stdout (JSON structured logging recommended but not implemented)
 - Example entries:
   ```
@@ -633,11 +657,13 @@ Admin users bypass global limiter; consider adding IP-based whitelisting in prod
   ```
 
 **Docker Logs:**
+
 - Accessible via `docker logs app-slot-3000`
 - Retention: 7 days (default Docker daemon policy)
 - Recommendation: Ship logs to CloudWatch or Datadog for persistent storage
 
 **Nginx Logs:**
+
 - Access log: `/var/log/nginx/access.log` (not monitored)
 - Error log: `/var/log/nginx/error.log` (manual review only)
 - Recommendation: Configure structured logging with `escape=json` for production
@@ -645,12 +671,14 @@ Admin users bypass global limiter; consider adding IP-based whitelisting in prod
 ### Metrics
 
 **Collected metrics (currently logged only):**
+
 - AI provider health status (success/failure counts per provider)
 - Database connection status (connected/failed)
 - Application readiness state (ready/not-ready)
 - Rate limit headers (RateLimit-Remaining, RateLimit-Reset)
 
 **Not collected:**
+
 - Request latency percentiles (p50, p95, p99)
 - Error rates by endpoint
 - AI API response times by provider
@@ -662,13 +690,13 @@ Admin users bypass global limiter; consider adding IP-based whitelisting in prod
 
 Currently no alerting is configured. Recommended alerts:
 
-| Alert | Condition | Action |
-|-------|-----------|--------|
-| High Error Rate | >10% of requests fail in 5 min | Page on-call |
-| Provider Failure | All AI providers unhealthy | Escalate to SRE team |
-| Database Down | MongoDB connection timeout | Page on-call |
-| Deployment Failure | Jenkins pipeline fails 3x in a row | Slack notification |
-| Disk Full | EC2 disk usage >90% | Alert and provision cleanup |
+| Alert              | Condition                          | Action                      |
+| ------------------ | ---------------------------------- | --------------------------- |
+| High Error Rate    | >10% of requests fail in 5 min     | Page on-call                |
+| Provider Failure   | All AI providers unhealthy         | Escalate to SRE team        |
+| Database Down      | MongoDB connection timeout         | Page on-call                |
+| Deployment Failure | Jenkins pipeline fails 3x in a row | Slack notification          |
+| Disk Full          | EC2 disk usage >90%                | Alert and provision cleanup |
 
 ---
 
@@ -676,12 +704,12 @@ Currently no alerting is configured. Recommended alerts:
 
 ### Required Secrets (Jenkins Credential Store)
 
-| Credential ID | Type | Usage |
-|---------------|------|-------|
-| `docker-credentials` | Username/Password | Docker Hub login (Stage 4) |
-| `ec2-ssh-key` | Private SSH Key | EC2 deployment (Stages 5–7) |
-| `mongo-uri` | Secret Text | MongoDB connection (Stage 5) |
-| `gemini-api-key` | Secret Text | Gemini API initialization (Stage 5) |
+| Credential ID        | Type              | Usage                               |
+| -------------------- | ----------------- | ----------------------------------- |
+| `docker-credentials` | Username/Password | Docker Hub login (Stage 4)          |
+| `ec2-ssh-key`        | Private SSH Key   | EC2 deployment (Stages 5–7)         |
+| `mongo-uri`          | Secret Text       | MongoDB connection (Stage 5)        |
+| `gemini-api-key`     | Secret Text       | Gemini API initialization (Stage 5) |
 
 ### Optional Secrets
 
@@ -701,4 +729,4 @@ Currently no alerting is configured. Recommended alerts:
 
 ---
 
-*Documentation generated for engineering review purposes.*
+_Documentation generated for engineering review purposes._
